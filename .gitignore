@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/market.db
+data/market.db-*
+data/exports/
+.tmp-chrome/
+*.log
