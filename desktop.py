@@ -40,11 +40,30 @@ def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def _can_write(path: str) -> bool:
+    try:
+        os.makedirs(path, exist_ok=True)
+        probe = os.path.join(path, ".write-test")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write("ok")
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
+
 def app_dir() -> str:
-    """可写数据目录：打包后放在 %LOCALAPPDATA%，避免 Program Files 只读。"""
+    """数据目录：打包后放在 exe 同级 data\\，保持绿色便携；只读位置才退回 LOCALAPPDATA。"""
     if is_frozen():
-        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-        return os.path.join(base, APP_NAME)
+        base = os.path.dirname(os.path.abspath(sys.executable))
+        preferred = os.path.join(base, "data")
+        if _can_write(preferred):
+            return preferred
+        fallback = os.path.join(
+            os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), APP_NAME, "data"
+        )
+        os.makedirs(fallback, exist_ok=True)
+        return fallback
     return os.path.join(ROOT, "data")
 
 

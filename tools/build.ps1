@@ -1,4 +1,4 @@
-# Build Windows desktop packages: one-file exe + portable folder.
+# Build Windows desktop package (portable folder, no temp extraction).
 # Usage: powershell -ExecutionPolicy Bypass -File tools\build.ps1
 $ErrorActionPreference = "Stop"
 
@@ -12,11 +12,11 @@ if (-not (Test-Path $pyi)) { throw "Missing PyInstaller in .venv. Run: pip insta
 & $venvPy -c "import PIL" 2>$null
 if ($LASTEXITCODE -ne 0) { throw "Missing Pillow in .venv. Run: pip install pillow" }
 
-Write-Host "[1/4] make icon"
+Write-Host "[1/3] make icon"
 & $venvPy tools\make_icon.py
 
-Write-Host "[2/4] clean old output"
-foreach ($p in @("build\MarketMonitor", "build\MarketMonitor-portable", "dist\MarketMonitor-portable")) {
+Write-Host "[2/3] clean old output"
+foreach ($p in @("build\MarketMonitor", "dist\MarketMonitor", "dist\MarketMonitor-portable.zip", "dist\MarketMonitor.exe")) {
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
 
@@ -30,24 +30,19 @@ $argsCommon = @(
     "desktop.py"
 )
 
-Write-Host "[3/4] build one-file exe"
-# 单文件模式必须解压：固定到 %LOCALAPPDATA%\MarketMonitor\tmp，
-# 避免系统 TEMP 不可写/不存在时出现 "Failed to create temporary directory"。
-# Windows 下 bootloader 会展开 %LOCALAPPDATA%，POSIX 不会。
-& $pyi --onefile --name MarketMonitor --runtime-tmpdir "%LOCALAPPDATA%\MarketMonitor\tmp" @argsCommon
-if ($LASTEXITCODE -ne 0) { throw "one-file build failed" }
-
-Write-Host "[4/4] build portable folder"
-& $pyi --onedir --name MarketMonitor-portable @argsCommon
+Write-Host "[3/3] build portable folder"
+# onedir only: the exe never extracts to %TEMP%, and data lives in data\ next to the exe.
+# The one-file mode must extract to a temp dir, which fails on locked-down machines.
+& $pyi --onedir --name MarketMonitor @argsCommon
 if ($LASTEXITCODE -ne 0) { throw "portable build failed" }
 
 $zip = "dist\MarketMonitor-portable.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path "dist\MarketMonitor-portable\*" -DestinationPath $zip
+Compress-Archive -Path "dist\MarketMonitor" -DestinationPath $zip
 
-$exeSize = (Get-Item "dist\MarketMonitor.exe").Length / 1MB
+$exeSize = (Get-Item "dist\MarketMonitor\MarketMonitor.exe").Length / 1MB
 $zipSize = (Get-Item $zip).Length / 1MB
 Write-Host ""
 Write-Host "Done."
-Write-Host ("  one-file : dist\MarketMonitor.exe  {0:N1} MB" -f $exeSize)
-Write-Host ("  portable : {0}  {1:N1} MB" -f $zip, $zipSize)
+Write-Host ("  exe     : dist\MarketMonitor\MarketMonitor.exe  {0:N1} MB" -f $exeSize)
+Write-Host ("  package : {0}  {1:N1} MB" -f $zip, $zipSize)

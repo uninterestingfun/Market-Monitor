@@ -19,7 +19,7 @@
 
 ## 快速开始
 
-**Windows 免安装（推荐）**：下载 `dist\MarketMonitor.exe` 双击即可，无需安装 Python。
+**Windows 免安装（推荐）**：解压 `dist\MarketMonitor-portable.zip`，双击里面的 `MarketMonitor.exe` 即可，无需安装 Python。
 
 ```bash
 # 源码方式
@@ -30,29 +30,38 @@ python desktop.py        # 桌面版，弹出独立应用窗口
 
 ## 桌面版（独立窗口）
 
-`dist\` 下有两种产物，功能完全一致：
+`dist\MarketMonitor-portable.zip` 解压后是一个完整目录，双击 `MarketMonitor.exe` 运行：
 
-| 文件 | 说明 |
-| --- | --- |
-| `MarketMonitor.exe` | 单文件，24.7 MB，双击运行（首次启动解压约 2 秒） |
-| `MarketMonitor-portable.zip` | 免解压版目录包，解压后运行 `MarketMonitor-portable.exe` |
+```
+MarketMonitor\
+├─ MarketMonitor.exe     ← 双击这个
+├─ _internal\            ← 运行时依赖，不要动
+└─ data\                 ← 首次运行自动生成
+   ├─ market.db          # K 线历史库
+   ├─ exports\           # CSV 导出
+   ├─ app.log            # 运行日志
+   └─ ui-profile\        # 应用窗口的浏览器配置
+```
 
-- 窗口用 **Edge / Chrome 的应用模式**打开：无地址栏、无标签页、独立任务栏图标，看起来就是一个桌面程序；机器上没有 Chromium 浏览器时自动退回默认浏览器。
-- 数据与日志写到 `%LOCALAPPDATA%\MarketMonitor\`（`market.db`、`app.log`、`ui-profile`），不污染程序目录，也避免 Program Files 只读问题。
-- 单文件版的解压目录固定为 `%LOCALAPPDATA%\MarketMonitor\tmp`，不再依赖系统 `%TEMP%`——避免 TEMP 不可写 / 不存在时出现 **“Failed to create temporary directory”**。若所在环境仍限制解压，改用**便携目录版**（完全不落地解压）。
+- **完全绿色**：数据、日志、导出、窗口配置全部在 exe 同级的 `data\` 里；`%LOCALAPPDATA%`、`%TEMP%` 都不再写入。
+- **不做临时解压**：采用 PyInstaller 的 onedir 模式，exe 直接加载 `_internal\` 里的运行时，不会出现 “Could not create temporary directory”。
+- 窗口用 **Edge / Chrome 的应用模式**打开：无地址栏、无标签页、独立任务栏图标；机器上没有 Chromium 浏览器时退回默认浏览器。
+- 若整个目录被放在只读位置（如 Program Files），数据会自动改写到 `%LOCALAPPDATA%\MarketMonitor\data`。
 - 首次运行本地库为空，会在后台自动下载全部标的历史（约 1 分钟），期间界面可正常使用。
 - 命令行参数：`--selftest`（自检后退出）、`--no-window`（只起服务）、`--port 9000`。
 - 自检：`MarketMonitor.exe --selftest` → 输出 `SELFTEST OK ... assets=74`。
+
+> 不再提供单文件 exe：单文件模式启动时必须把运行时解压到临时目录，在受限环境（TEMP 不可写、安全软件拦截、父目录不存在）会直接报 “Failed to create runtime-tmpdir path / Could not create temporary directory”，与“所有文件都在 exe 旁边”的目标也冲突。
 
 **自行打包**：
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\pip install requests numpy pyinstaller
+.\.venv\Scripts\pip install requests numpy pillow pyinstaller
 powershell -ExecutionPolicy Bypass -File tools\build.ps1
 ```
 
-产物落在 `dist\`；图标由 `tools\make_icon.py` 生成。
+产物：`dist\MarketMonitor\`（目录）与 `dist\MarketMonitor-portable.zip`；图标由 `tools\make_icon.py` 生成。
 
 ## 命令
 
