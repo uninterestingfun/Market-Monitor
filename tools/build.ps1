@@ -9,6 +9,8 @@ $venvPy = Join-Path $root ".venv\Scripts\python.exe"
 $pyi = Join-Path $root ".venv\Scripts\pyinstaller.exe"
 if (-not (Test-Path $venvPy)) { throw "Missing .venv. Run: python -m venv .venv" }
 if (-not (Test-Path $pyi)) { throw "Missing PyInstaller in .venv. Run: pip install pyinstaller" }
+& $venvPy -c "import PIL" 2>$null
+if ($LASTEXITCODE -ne 0) { throw "Missing Pillow in .venv. Run: pip install pillow" }
 
 Write-Host "[1/4] make icon"
 & $venvPy tools\make_icon.py
@@ -29,7 +31,10 @@ $argsCommon = @(
 )
 
 Write-Host "[3/4] build one-file exe"
-& $pyi --onefile --name MarketMonitor @argsCommon
+# 单文件模式必须解压：固定到 %LOCALAPPDATA%\MarketMonitor\tmp，
+# 避免系统 TEMP 不可写/不存在时出现 "Failed to create temporary directory"。
+# Windows 下 bootloader 会展开 %LOCALAPPDATA%，POSIX 不会。
+& $pyi --onefile --name MarketMonitor --runtime-tmpdir "%LOCALAPPDATA%\MarketMonitor\tmp" @argsCommon
 if ($LASTEXITCODE -ne 0) { throw "one-file build failed" }
 
 Write-Host "[4/4] build portable folder"

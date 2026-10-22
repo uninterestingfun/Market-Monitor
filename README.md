@@ -39,6 +39,7 @@ python desktop.py        # 桌面版，弹出独立应用窗口
 
 - 窗口用 **Edge / Chrome 的应用模式**打开：无地址栏、无标签页、独立任务栏图标，看起来就是一个桌面程序；机器上没有 Chromium 浏览器时自动退回默认浏览器。
 - 数据与日志写到 `%LOCALAPPDATA%\MarketMonitor\`（`market.db`、`app.log`、`ui-profile`），不污染程序目录，也避免 Program Files 只读问题。
+- 单文件版的解压目录固定为 `%LOCALAPPDATA%\MarketMonitor\tmp`，不再依赖系统 `%TEMP%`——避免 TEMP 不可写 / 不存在时出现 **“Failed to create temporary directory”**。若所在环境仍限制解压，改用**便携目录版**（完全不落地解压）。
 - 首次运行本地库为空，会在后台自动下载全部标的历史（约 1 分钟），期间界面可正常使用。
 - 命令行参数：`--selftest`（自检后退出）、`--no-window`（只起服务）、`--port 9000`。
 - 自检：`MarketMonitor.exe --selftest` → 输出 `SELFTEST OK ... assets=74`。
