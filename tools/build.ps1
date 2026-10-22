@@ -1,4 +1,4 @@
-# Build Windows desktop package (portable folder, no temp extraction).
+# Build Windows desktop package (portable folder) and the single-file installer.
 # Usage: powershell -ExecutionPolicy Bypass -File tools\build.ps1
 $ErrorActionPreference = "Stop"
 
@@ -12,11 +12,12 @@ if (-not (Test-Path $pyi)) { throw "Missing PyInstaller in .venv. Run: pip insta
 & $venvPy -c "import PIL" 2>$null
 if ($LASTEXITCODE -ne 0) { throw "Missing Pillow in .venv. Run: pip install pillow" }
 
-Write-Host "[1/3] make icon"
+Write-Host "[1/4] make icon"
 & $venvPy tools\make_icon.py
 
-Write-Host "[2/3] clean old output"
-foreach ($p in @("build\MarketMonitor", "dist\MarketMonitor", "dist\MarketMonitor-portable.zip", "dist\MarketMonitor.exe")) {
+Write-Host "[2/4] clean old output"
+foreach ($p in @("build\MarketMonitor", "dist\MarketMonitor", "dist\MarketMonitor-portable.zip",
+                 "dist\MarketMonitor-Setup.exe", "installer\payload.zip")) {
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
 
@@ -30,9 +31,8 @@ $argsCommon = @(
     "desktop.py"
 )
 
-Write-Host "[3/3] build portable folder"
+Write-Host "[3/4] build portable folder"
 # onedir only: the exe never extracts to %TEMP%, and data lives in data\ next to the exe.
-# The one-file mode must extract to a temp dir, which fails on locked-down machines.
 & $pyi --onedir --name MarketMonitor @argsCommon
 if ($LASTEXITCODE -ne 0) { throw "portable build failed" }
 
@@ -40,9 +40,24 @@ $zip = "dist\MarketMonitor-portable.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path "dist\MarketMonitor" -DestinationPath $zip
 
+Write-Host "[4/4] build installer (native C#)"
+# The installer is a plain .NET WinForms exe with payload.zip embedded as a resource:
+# no Python runtime, no self-extraction to %TEMP%.
+Compress-Archive -Path "dist\MarketMonitor\*" -DestinationPath "installer\payload.zip" -Force
+$csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if (-not (Test-Path $csc)) { throw "csc.exe not found (.NET Framework 4.x required)" }
+& $csc /nologo /target:winexe /platform:anycpu /optimize+ /codepage:65001 `
+    "/win32icon:assets\icon.ico" "/resource:installer\payload.zip,payload.zip" `
+    "/r:System.dll" "/r:System.Core.dll" "/r:System.Drawing.dll" "/r:System.Windows.Forms.dll" `
+    "/r:System.IO.Compression.dll" "/r:System.IO.Compression.FileSystem.dll" "/r:Microsoft.CSharp.dll" `
+    "/out:dist\MarketMonitor-Setup.exe" "installer\Installer.cs"
+if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
+
 $exeSize = (Get-Item "dist\MarketMonitor\MarketMonitor.exe").Length / 1MB
 $zipSize = (Get-Item $zip).Length / 1MB
+$setupSize = (Get-Item "dist\MarketMonitor-Setup.exe").Length / 1MB
 Write-Host ""
 Write-Host "Done."
-Write-Host ("  exe     : dist\MarketMonitor\MarketMonitor.exe  {0:N1} MB" -f $exeSize)
-Write-Host ("  package : {0}  {1:N1} MB" -f $zip, $zipSize)
+Write-Host ("  exe        : dist\MarketMonitor\MarketMonitor.exe  {0:N1} MB" -f $exeSize)
+Write-Host ("  portable   : {0}  {1:N1} MB" -f $zip, $zipSize)
+Write-Host ("  installer  : dist\MarketMonitor-Setup.exe  {0:N1} MB" -f $setupSize)

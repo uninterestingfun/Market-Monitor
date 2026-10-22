@@ -14,3 +14,4 @@ instance.json
 ui-profile/
 *.spec
 *.log
+installer/payload.zip

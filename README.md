@@ -19,7 +19,9 @@
 
 ## 快速开始
 
-**Windows 免安装（推荐）**：解压 `dist\MarketMonitor-portable.zip`，双击里面的 `MarketMonitor.exe` 即可，无需安装 Python。
+**Windows 安装包（推荐）**：运行 `dist\MarketMonitor-Setup.exe`，选一个目录安装，完成后从桌面 / 开始菜单启动。无需安装 Python。
+
+**免安装**：解压 `dist\MarketMonitor-portable.zip`，双击里面的 `MarketMonitor.exe`。
 
 ```bash
 # 源码方式
@@ -28,7 +30,27 @@ python run.py            # 网页版，自动打开 http://127.0.0.1:8765/
 python desktop.py        # 桌面版，弹出独立应用窗口
 ```
 
-## 桌面版（独立窗口）
+## 安装包（Windows）
+
+`dist\MarketMonitor-Setup.exe`（24.9 MB）是一个原生 .NET 安装程序，不依赖 Python，也不会把自己解压到临时目录。
+
+| 步骤 | 说明 |
+| --- | --- |
+| 1 | 双击 `MarketMonitor-Setup.exe` |
+| 2 | 选择安装目录，默认 `%LOCALAPPDATA%\Programs\MarketMonitor`（普通用户权限即可，不需要管理员） |
+| 3 | 勾选桌面 / 开始菜单快捷方式、安装后立即启动 |
+| 4 | 点「安装」，完成后即可从快捷方式启动 |
+
+- 安装内容就是便携版目录：`MarketMonitor.exe` + `_internal\`，数据随后写在 `<安装目录>\data\`。
+- 卸载：安装目录里的 `uninstall.bat`，或「设置 → 应用」里的「市场监测」（会一并删除 `data\`）。
+- 静默安装（批量部署）：
+  ```bat
+  MarketMonitor-Setup.exe --silent --dir "D:\Apps\MarketMonitor" --no-launch
+  ```
+  可选参数：`--no-desktop`、`--no-startmenu`、`--log setup.log`。
+- 受限环境（组策略/沙箱）下如果写不了桌面快捷方式或 HKCU 注册表，安装**不会中断**，只跳过对应步骤并在日志里说明。
+
+## 便携版（免安装）
 
 `dist\MarketMonitor-portable.zip` 解压后是一个完整目录，双击 `MarketMonitor.exe` 运行：
 
@@ -49,9 +71,6 @@ MarketMonitor\
 - 若整个目录被放在只读位置（如 Program Files），数据会自动改写到 `%LOCALAPPDATA%\MarketMonitor\data`。
 - 首次运行本地库为空，会在后台自动下载全部标的历史（约 1 分钟），期间界面可正常使用。
 - 命令行参数：`--selftest`（自检后退出）、`--no-window`（只起服务）、`--port 9000`。
-- 自检：`MarketMonitor.exe --selftest` → 输出 `SELFTEST OK ... assets=74`。
-
-> 不再提供单文件 exe：单文件模式启动时必须把运行时解压到临时目录，在受限环境（TEMP 不可写、安全软件拦截、父目录不存在）会直接报 “Failed to create runtime-tmpdir path / Could not create temporary directory”，与“所有文件都在 exe 旁边”的目标也冲突。
 
 **自行打包**：
 
@@ -61,7 +80,8 @@ python -m venv .venv
 powershell -ExecutionPolicy Bypass -File tools\build.ps1
 ```
 
-产物：`dist\MarketMonitor\`（目录）与 `dist\MarketMonitor-portable.zip`；图标由 `tools\make_icon.py` 生成。
+产物：`dist\MarketMonitor\`（目录）、`dist\MarketMonitor-portable.zip`、`dist\MarketMonitor-Setup.exe`。
+安装器由 `installer\Installer.cs` 用系统自带的 `csc.exe` 编译（.NET Framework 4.x），payload 作为程序集资源内嵌。
 
 ## 命令
 
@@ -136,8 +156,10 @@ Market_monitor/
 ├─ desktop.py                 # 桌面版入口（本地服务 + 独立窗口，exe 的启动脚本）
 ├─ requirements.txt
 ├─ assets/icon.ico            # 应用图标（tools/make_icon.py 生成）
+├─ installer/
+│  └─ Installer.cs            # 原生 C# 安装器（csc 编译，payload 内嵌）
 ├─ tools/
-│  ├─ build.ps1               # 一键打包 exe / 便携版
+│  ├─ build.ps1               # 一键打包 exe / 便携版 / 安装包
 │  └─ make_icon.py
 ├─ data/                      # 源码模式的数据目录（桌面版在 %LOCALAPPDATA%）
 │  ├─ market.db               # SQLite：K 线、快照、元数据
