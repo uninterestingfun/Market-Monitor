@@ -3,11 +3,13 @@
 //        /resource:installer\payload.zip,payload.zip /out:dist\MarketMonitor-Setup.exe installer\Installer.cs
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -23,6 +25,9 @@ namespace MarketMonitorSetup
         internal const string ShortcutName = "市场监测.lnk";
         internal const string PayloadResource = "payload.zip";
 
+        /// <summary>提权重启后自动开始安装。</summary>
+        internal static bool AutoStart;
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -37,6 +42,7 @@ namespace MarketMonitorSetup
 
             if (!silent)
             {
+                AutoStart = Has(args, "--auto");
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Application.Run(new InstallerForm());
@@ -66,6 +72,55 @@ namespace MarketMonitorSetup
             return Path.Combine(baseDir, Path.Combine("Programs", AppId));
         }
 
+        /// <summary>当前进程是否已提权。</summary>
+        internal static bool IsAdmin()
+        {
+            try
+            {
+                using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+                    return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+            }
+            catch { return false; }
+        }
+
+        /// <summary>目标目录是否可写（会顺带创建目录）。</summary>
+        internal static bool CanWrite(string dir)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string probe = Path.Combine(dir, ".mm-write-test");
+                File.WriteAllText(probe, "ok");
+                File.Delete(probe);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>以管理员身份重启安装器（UAC 提权），安装到受保护目录时使用。</summary>
+        internal static bool RelaunchElevated(string target, bool desktop, bool startmenu, bool launch)
+        {
+            string args = "--elevated --dir \"" + target + "\"";
+            if (!desktop) args += " --no-desktop";
+            if (!startmenu) args += " --no-startmenu";
+            if (!launch) args += " --no-launch";
+            try
+            {
+                var info = new ProcessStartInfo(Application.ExecutablePath, args + " --auto");
+                info.Verb = "runas";
+                info.UseShellExecute = true;
+                Process.Start(info);
+                return true;
+            }
+            catch (Win32Exception ex)
+            {
+                // 1223 = 用户取消了 UAC
+                if (ex.NativeErrorCode != 1223)
+                    MessageBox.Show("提权失败：" + ex.Message, "无法提升权限", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
         internal static bool Has(string[] args, string key)
         {
             return Array.IndexOf(args, key) >= 0;
@@ -92,7 +147,14 @@ namespace MarketMonitorSetup
                     throw new Exception("目标目录非空，请选择空目录：\n" + target);
             }
 
-            Report(progress, log, 0.03, "创建安装目录…");
+            Report(progress, log, 0.03, "检查安装目录…");
+            if (!CanWrite(target))
+                throw new Exception(
+                    "无法写入目标目录：\n" + target + "\n\n" +
+                    "通常是因为该位置需要管理员权限（例如 Program Files）。\n" +
+                    "请换一个有写权限的目录（例如 D:\\Apps\\MarketMonitor），\n" +
+                    "或右键安装程序选择「以管理员身份运行」。");
+            Report(progress, log, 0.04, "创建安装目录…");
             Directory.CreateDirectory(target);
 
             Assembly asm = Assembly.GetExecutingAssembly();
@@ -346,6 +408,12 @@ namespace MarketMonitorSetup
             Controls.Add(cancel);
 
             AcceptButton = _install;
+
+            Shown += delegate
+            {
+                if (Program.AutoStart)
+                    BeginInvoke(new Action(delegate { OnInstall(null, EventArgs.Empty); }));
+            };
         }
 
         private void OnInstall(object sender, EventArgs e)
@@ -357,6 +425,27 @@ namespace MarketMonitorSetup
                 MessageBox.Show(this, "请选择有效的安装目录。", "路径无效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            // 提前检查写权限：受保护目录（如 Program Files）直接提示，可一键提权
+            if (!Program.CanWrite(target))
+            {
+                if (!Program.IsAdmin())
+                {
+                    DialogResult choice = MessageBox.Show(this,
+                        "无法写入：\n" + target + "\n\n该目录需要管理员权限。\n\n" +
+                        "是否以管理员身份重新启动安装程序？\n（选择「否」可返回更换目录）",
+                        "需要管理员权限", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    if (choice == DialogResult.Yes &&
+                        Program.RelaunchElevated(target, _desktop.Checked, _start.Checked, _launch.Checked))
+                        Close();
+                    return;
+                }
+                MessageBox.Show(this,
+                    "无法写入该目录：\n" + target + "\n\n请换一个有写权限的目录，例如 D:\\Apps\\MarketMonitor。",
+                    "目录不可写", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             _busy = true;
             _install.Enabled = false;
             _browse.Enabled = false;
