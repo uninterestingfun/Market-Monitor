@@ -83,18 +83,38 @@ namespace MarketMonitorSetup
             catch { return false; }
         }
 
-        /// <summary>目标目录是否可写（会顺带创建目录）。</summary>
+        /// <summary>目标目录是否可写（会顺带创建目录），失败时给出具体原因。</summary>
+        internal static bool CanWrite(string dir, out string reason)
+        {
+            reason = null;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                    string probe = Path.Combine(dir, ".mm-probe-" + Guid.NewGuid().ToString("N") + ".tmp");
+                    // DeleteOnClose：不依赖后续 File.Delete（杀软扫描时可能短暂占用）
+                    using (var fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write,
+                                                   FileShare.None, 4096, FileOptions.DeleteOnClose))
+                    {
+                        fs.WriteByte(0x41);
+                    }
+                    reason = null;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    reason = ex.Message;
+                    if (attempt == 0) Thread.Sleep(150);
+                }
+            }
+            return false;
+        }
+
         internal static bool CanWrite(string dir)
         {
-            try
-            {
-                Directory.CreateDirectory(dir);
-                string probe = Path.Combine(dir, ".mm-write-test");
-                File.WriteAllText(probe, "ok");
-                File.Delete(probe);
-                return true;
-            }
-            catch { return false; }
+            string reason;
+            return CanWrite(dir, out reason);
         }
 
         /// <summary>以管理员身份重启安装器（UAC 提权），安装到受保护目录时使用。</summary>
@@ -148,12 +168,15 @@ namespace MarketMonitorSetup
             }
 
             Report(progress, log, 0.03, "检查安装目录…");
-            if (!CanWrite(target))
+            if (File.Exists(target))
+                throw new Exception("目标路径是一个文件，不是目录：\n" + target);
+            string writeError;
+            if (!CanWrite(target, out writeError))
                 throw new Exception(
                     "无法写入目标目录：\n" + target + "\n\n" +
-                    "通常是因为该位置需要管理员权限（例如 Program Files）。\n" +
-                    "请换一个有写权限的目录（例如 D:\\Apps\\MarketMonitor），\n" +
-                    "或右键安装程序选择「以管理员身份运行」。");
+                    "系统返回：" + writeError + "\n\n" +
+                    "若确实需要管理员权限（例如 Program Files），请右键安装程序选择「以管理员身份运行」；\n" +
+                    "否则请换一个有写权限的目录。");
             Report(progress, log, 0.04, "创建安装目录…");
             Directory.CreateDirectory(target);
 
@@ -299,6 +322,7 @@ namespace MarketMonitorSetup
         private readonly Button _install = new Button();
         private readonly Button _browse = new Button();
         private bool _busy;
+        private bool _fallbackTried;
 
         internal InstallerForm()
         {
@@ -427,22 +451,53 @@ namespace MarketMonitorSetup
             }
 
             // 提前检查写权限：受保护目录（如 Program Files）直接提示，可一键提权
-            if (!Program.CanWrite(target))
+            string writeReason;
+            if (File.Exists(target))
             {
-                if (!Program.IsAdmin())
+                MessageBox.Show(this, "该路径是一个文件，不是目录：\n" + target + "\n\n请换一个目录。",
+                                "路径无效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (!Program.CanWrite(target, out writeReason))
+            {
+                bool permissionIssue = writeReason != null &&
+                    (writeReason.IndexOf("拒绝", StringComparison.Ordinal) >= 0 ||
+                     writeReason.IndexOf("denied", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     writeReason.IndexOf("Access", StringComparison.OrdinalIgnoreCase) >= 0);
+                string fallback = Program.DefaultDir();
+
+                if (permissionIssue && !Program.IsAdmin())
                 {
                     DialogResult choice = MessageBox.Show(this,
-                        "无法写入：\n" + target + "\n\n该目录需要管理员权限。\n\n" +
-                        "是否以管理员身份重新启动安装程序？\n（选择「否」可返回更换目录）",
-                        "需要管理员权限", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (choice == DialogResult.Yes &&
-                        Program.RelaunchElevated(target, _desktop.Checked, _start.Checked, _launch.Checked))
-                        Close();
+                        "无法写入：\n" + target + "\n\n系统返回：" + writeReason + "\n\n" +
+                        "【是】以管理员身份重新启动安装程序\n" +
+                        "【否】改用推荐目录：" + fallback + "\n" +
+                        "【取消】返回，手动修改路径",
+                        "目录不可写", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    if (choice == DialogResult.Yes)
+                    {
+                        if (Program.RelaunchElevated(target, _desktop.Checked, _start.Checked, _launch.Checked))
+                            Close();
+                    }
+                    else if (choice == DialogResult.No && !_fallbackTried)
+                    {
+                        _fallbackTried = true;
+                        _path.Text = fallback;
+                        OnInstall(null, EventArgs.Empty);
+                    }
                     return;
                 }
-                MessageBox.Show(this,
-                    "无法写入该目录：\n" + target + "\n\n请换一个有写权限的目录，例如 D:\\Apps\\MarketMonitor。",
-                    "目录不可写", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                DialogResult retry = MessageBox.Show(this,
+                    "无法写入：\n" + target + "\n\n系统返回：" + writeReason + "\n\n" +
+                    "是否改用推荐目录？\n" + fallback,
+                    "目录不可写", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                if (retry == DialogResult.Yes && !_fallbackTried)
+                {
+                    _fallbackTried = true;
+                    _path.Text = fallback;
+                    OnInstall(null, EventArgs.Empty);
+                }
                 return;
             }
 

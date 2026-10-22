@@ -42,8 +42,9 @@ python desktop.py        # 桌面版，弹出独立应用窗口
 | 4 | 点「安装」，完成后即可从快捷方式启动 |
 
 - 安装内容就是便携版目录：`MarketMonitor.exe` + `_internal\`，数据随后写在 `<安装目录>\data\`。
-- **不要选 `C:\Program Files` / `E:\Program Files` 这类受保护目录**：普通权限写不进去。安装器会检测到并提示，可直接选择「以管理员身份重新启动」自动提权安装；也可以改选 `D:\Apps\MarketMonitor` 之类的普通目录。
-- 若真的装进了 Program Files，程序运行时会把数据写到 `%LOCALAPPDATA%\MarketMonitor\data`（程序目录只读时的自动回退），卸载时这份数据需要手动删除。
+- **不要选盘符根目录**（如 `F:\MarketMonitor`）或 `C:\Program Files` 这类受保护目录：部分卷的根目录由系统托管，普通用户没有创建权限。安装器会显示系统返回的具体原因，并提供「改用推荐目录」（`%LOCALAPPDATA%\Programs\MarketMonitor`）的一键入口。
+- 想要“所有用户可用”的安装位置，需要提权：安装器会弹窗确认，可直接以管理员身份重启并自动继续安装。
+- 若真的装进了只读目录，程序运行时会把数据写到 `%LOCALAPPDATA%\MarketMonitor\data`（程序目录只读时的自动回退），卸载时这份数据需要手动删除。
 - 卸载：安装目录里的 `uninstall.bat`，或「设置 → 应用」里的「市场监测」（会一并删除 `data\`）。
 - 静默安装（批量部署）：
   ```bat
