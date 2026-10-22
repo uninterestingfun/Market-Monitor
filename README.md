@@ -19,18 +19,47 @@
 
 ## 快速开始
 
+**Windows 免安装（推荐）**：下载 `dist\MarketMonitor.exe` 双击即可，无需安装 Python。
+
 ```bash
+# 源码方式
 pip install -r requirements.txt
-python run.py
+python run.py            # 网页版，自动打开 http://127.0.0.1:8765/
+python desktop.py        # 桌面版，弹出独立应用窗口
 ```
 
-浏览器会自动打开 <http://127.0.0.1:8765/>（端口被占用时自动顺延）。
+## 桌面版（独立窗口）
+
+`dist\` 下有两种产物，功能完全一致：
+
+| 文件 | 说明 |
+| --- | --- |
+| `MarketMonitor.exe` | 单文件，24.7 MB，双击运行（首次启动解压约 2 秒） |
+| `MarketMonitor-portable.zip` | 免解压版目录包，解压后运行 `MarketMonitor-portable.exe` |
+
+- 窗口用 **Edge / Chrome 的应用模式**打开：无地址栏、无标签页、独立任务栏图标，看起来就是一个桌面程序；机器上没有 Chromium 浏览器时自动退回默认浏览器。
+- 数据与日志写到 `%LOCALAPPDATA%\MarketMonitor\`（`market.db`、`app.log`、`ui-profile`），不污染程序目录，也避免 Program Files 只读问题。
+- 首次运行本地库为空，会在后台自动下载全部标的历史（约 1 分钟），期间界面可正常使用。
+- 命令行参数：`--selftest`（自检后退出）、`--no-window`（只起服务）、`--port 9000`。
+- 自检：`MarketMonitor.exe --selftest` → 输出 `SELFTEST OK ... assets=74`。
+
+**自行打包**：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\pip install requests numpy pyinstaller
+powershell -ExecutionPolicy Bypass -File tools\build.ps1
+```
+
+产物落在 `dist\`；图标由 `tools\make_icon.py` 生成。
 
 ## 命令
 
 | 命令 | 说明 |
 | --- | --- |
 | `python run.py` | 启动面板（等同 `serve`） |
+| `python desktop.py` | 启动桌面版（独立窗口） |
+| `python desktop.py --selftest` | 桌面版自检 |
 | `python run.py serve --port 9000 --no-browser` | 指定端口、不自动开浏览器 |
 | `python run.py download` | 刷新全部标的历史（日/周/月）到 `data/`，补全派生指标并导出 CSV |
 | `python run.py check` | 自检：各数据源实时覆盖率 |
@@ -93,9 +122,14 @@ python run.py
 
 ```
 Market_monitor/
-├─ run.py                     # 入口：serve / download / check / list
+├─ run.py                     # 网页版入口：serve / download / check / list
+├─ desktop.py                 # 桌面版入口（本地服务 + 独立窗口，exe 的启动脚本）
 ├─ requirements.txt
-├─ data/
+├─ assets/icon.ico            # 应用图标（tools/make_icon.py 生成）
+├─ tools/
+│  ├─ build.ps1               # 一键打包 exe / 便携版
+│  └─ make_icon.py
+├─ data/                      # 源码模式的数据目录（桌面版在 %LOCALAPPDATA%）
 │  ├─ market.db               # SQLite：K 线、快照、元数据
 │  └─ exports/                # 下载时导出的 CSV
 └─ market_monitor/

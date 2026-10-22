@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import socket
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,7 +14,16 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from .service import MarketService
 
-WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+
+def _web_dir() -> str:
+    """开发时用包内目录；PyInstaller 打包后资源解压在 _MEIPASS 下。"""
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        return os.path.join(meipass, "market_monitor", "web")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+
+
+WEB_DIR = _web_dir()
 
 RANGE_LIMITS = {"1M": 22, "3M": 66, "6M": 130, "1Y": 250, "3Y": 156, "ALL": 0}
 RANGE_INTERVAL = {"1M": "day", "3M": "day", "6M": "day", "1Y": "day", "3Y": "week", "ALL": "month"}
@@ -152,11 +162,17 @@ def _free_port(host: str, preferred: int) -> int:
         return s.getsockname()[1]
 
 
-def serve(service: MarketService, host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
+def create_server(service: MarketService, host: str = "127.0.0.1", port: int = 8765):
+    """创建（但不启动）HTTP 服务，返回 (httpd, 实际端口)；桌面版在后台线程里跑它。"""
     Handler.service = service
     actual = _free_port(host, port)
     httpd = ThreadingHTTPServer((host, actual), Handler)
     httpd.daemon_threads = True
+    return httpd, actual
+
+
+def serve(service: MarketService, host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
+    httpd, actual = create_server(service, host, port)
     url = f"http://{host}:{actual}/"
     print(f"\n  市场监测面板已启动  →  {url}\n  按 Ctrl+C 停止\n")
     if open_browser:

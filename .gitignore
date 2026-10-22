@@ -1,7 +1,14 @@
-__pycache__/
+﻿__pycache__/
 *.pyc
 data/market.db
 data/market.db-*
 data/exports/
+.venv/
+build/
+dist/
+wheels/
+_tmp/
+_appdata/
 .tmp-chrome/
+*.spec
 *.log
