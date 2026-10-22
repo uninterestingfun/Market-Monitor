@@ -118,6 +118,28 @@ namespace MarketMonitorSetup
             return CanWrite(dir, out reason);
         }
 
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool GetVolumeInformation(
+            string rootPathName, StringBuilder volumeNameBuffer, int volumeNameSize,
+            out uint volumeSerialNumber, out uint maximumComponentLength, out uint fileSystemFlags,
+            StringBuilder fileSystemNameBuffer, int fileSystemNameSize);
+
+        /// <summary>目标卷是否被标记为只读（FILE_READ_ONLY_VOLUME）。</summary>
+        internal static bool IsReadOnlyVolume(string path)
+        {
+            try
+            {
+                string root = Path.GetPathRoot(Path.GetFullPath(path));
+                if (string.IsNullOrEmpty(root)) return false;
+                uint serial, maxLen, flags;
+                if (GetVolumeInformation(root, new StringBuilder(260), 260, out serial, out maxLen, out flags,
+                                         new StringBuilder(260), 260))
+                    return (flags & 0x00080000u) != 0;
+            }
+            catch { }
+            return false;
+        }
+
         /// <summary>以管理员身份重启安装器（UAC 提权），安装到受保护目录时使用。</summary>
         internal static bool RelaunchElevated(string target, bool desktop, bool startmenu, bool launch)
         {
@@ -393,12 +415,16 @@ namespace MarketMonitorSetup
                 sb.AppendLine("目标路径：" + target);
                 sb.AppendLine("当前用户：" + Environment.UserName + (Program.IsAdmin() ? "（管理员）" : "（普通用户）"));
                 sb.AppendLine("目录存在：" + (Directory.Exists(target) ? "是" : "否"));
+                sb.AppendLine("卷状态：" + (Program.IsReadOnlyVolume(target) ? "只读卷（Read-only）" : "可写卷"));
                 sb.AppendLine("写入测试：" + (ok ? "通过" : "失败"));
                 if (!ok)
                 {
                     sb.AppendLine("系统返回：" + reason);
                     sb.AppendLine();
-                    sb.AppendLine("建议改用：" + Program.DefaultDir());
+                    if (Program.IsReadOnlyVolume(target))
+                        sb.AppendLine("该磁盘被标记为只读，需要先在「磁盘管理」或 diskpart 里清除只读属性。");
+                    else
+                        sb.AppendLine("建议改用：" + Program.DefaultDir());
                 }
                 MessageBox.Show(this, sb.ToString(), "目录检测",
                                 MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
