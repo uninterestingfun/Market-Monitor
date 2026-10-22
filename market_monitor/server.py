@@ -84,6 +84,10 @@ class Handler(BaseHTTPRequestHandler):
             rel = path[len("/static/"):].replace("..", "")
             self._file(os.path.join(WEB_DIR, rel))
             return
+        if path == "/api/ping":
+            self.service.ping()
+            self._json({"ok": True})
+            return
         if path == "/api/overview":
             self._json(self.service.snapshot())
             return

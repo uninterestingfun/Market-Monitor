@@ -137,7 +137,26 @@ def write_lock(directory: str, port: int) -> str:
     return path
 
 
-def open_window(url: str, directory: str) -> str:
+def wait_for_window(service, proc=None, first_timeout: float = 180.0, idle_timeout: float = 30.0) -> str:
+    """用页面心跳判断窗口生命周期。
+
+    浏览器（Edge/Chrome）的启动进程常常立刻退出、把窗口交给已有实例，
+    因此不能拿 Popen.wait() 当作“窗口关闭”。这里改为：页面停止心跳 = 窗口关闭。
+    返回 closed / timeout。
+    """
+    started = time.time()
+    while True:
+        now = time.time()
+        last = float(getattr(service, "last_ping", 0.0) or 0.0)
+        if last:
+            if now - last > idle_timeout:
+                return "closed"
+        elif now - started > first_timeout:
+            return "timeout"
+        time.sleep(1.0)
+
+
+def open_window(url: str, directory: str, service=None, wait: bool = True) -> str:
     browser = find_browser()
     if browser:
         profile = os.path.join(directory, "ui-profile")
@@ -152,12 +171,18 @@ def open_window(url: str, directory: str) -> str:
             "--disable-features=Translate,MediaRouter",
         ]
         logging.info("打开应用窗口: %s", browser)
-        proc = subprocess.Popen(args)
-        proc.wait()
-        return "app"
+        subprocess.Popen(args)
+        if not wait:
+            return "app"
+        result = wait_for_window(service)
+        logging.info("窗口会话结束: %s", result)
+        return "timeout" if result == "timeout" else "app"
     logging.warning("未找到 Edge/Chrome，改用默认浏览器")
     webbrowser.open(url)
-    return "browser"
+    if not wait:
+        return "browser"
+    result = wait_for_window(service)
+    return "timeout" if result == "timeout" else "browser"
 
 
 def fatal(message: str) -> None:
@@ -193,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
         existing = running_port(directory)
         if existing:
             logging.info("已有实例运行在 %s，直接打开窗口", existing)
-            open_window(f"http://127.0.0.1:{existing}/", directory)
+            open_window(f"http://127.0.0.1:{existing}/", directory, wait=False)
             return 0
 
     store = None
@@ -239,7 +264,11 @@ def main(argv: list[str] | None = None) -> int:
             fatal("本地服务启动超时，请查看日志：" + os.path.join(directory, "app.log"))
             return 2
 
-        open_window(url, directory)
+        result = open_window(url, directory, service)
+        if result == "timeout":
+            fatal("应用窗口未能在浏览器中加载页面。\n\n请手动打开：" + url +
+                  "\n\n日志：" + os.path.join(directory, "app.log"))
+            return 3
         return 0
     except Exception as exc:  # noqa: BLE001
         logging.exception("运行异常")

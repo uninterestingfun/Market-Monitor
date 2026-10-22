@@ -1377,6 +1377,10 @@
   function boot() {
     bind();
     bindAnalysis();
+    // 心跳：桌面版据此判断窗口是否还开着（浏览器启动进程会立刻退出，不能当窗口生命周期用）
+    const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
+    ping();
+    setInterval(ping, 5000);
     const hash = decodeURIComponent((location.hash || "").slice(1));
     if (hash) state.selected = hash;
     tickClock();

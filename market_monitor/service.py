@@ -148,6 +148,7 @@ class MarketService:
         self._last_snapshot = 0.0
         self._errors: List[Dict[str, Any]] = []
         self._analysis_cache: Dict[str, tuple] = {}
+        self.last_ping: float = 0.0
         self.download_state: Dict[str, Any] = {
             "running": False, "done": 0, "total": 0, "current": "", "errors": [],
             "started_at": None, "finished_at": None,
@@ -165,6 +166,10 @@ class MarketService:
 
     def stop(self) -> None:
         self._stop.set()
+
+    def ping(self) -> None:
+        """前端心跳：桌面版据此判断窗口是否还开着。"""
+        self.last_ping = time.time()
 
     def _loop(self) -> None:
         while not self._stop.is_set():
