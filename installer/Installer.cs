@@ -10,6 +10,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -357,13 +358,13 @@ namespace MarketMonitorSetup
             Controls.Add(lbl);
 
             _path.Location = new Point(20, 118);
-            _path.Width = 430;
+            _path.Width = 380;
             _path.Text = Program.DefaultDir();
             Controls.Add(_path);
 
             _browse.Text = "浏览…";
-            _browse.Location = new Point(458, 116);
-            _browse.Size = new Size(80, 26);
+            _browse.Location = new Point(408, 116);
+            _browse.Size = new Size(70, 26);
             _browse.Click += delegate
             {
                 using (var dialog = new FolderBrowserDialog())
@@ -381,6 +382,28 @@ namespace MarketMonitorSetup
                 }
             };
             Controls.Add(_browse);
+
+            var test = new Button { Text = "检测", Location = new Point(486, 116), Size = new Size(56, 26) };
+            test.Click += delegate
+            {
+                string target = _path.Text.Trim();
+                string reason;
+                bool ok = Program.CanWrite(target, out reason);
+                var sb = new StringBuilder();
+                sb.AppendLine("目标路径：" + target);
+                sb.AppendLine("当前用户：" + Environment.UserName + (Program.IsAdmin() ? "（管理员）" : "（普通用户）"));
+                sb.AppendLine("目录存在：" + (Directory.Exists(target) ? "是" : "否"));
+                sb.AppendLine("写入测试：" + (ok ? "通过" : "失败"));
+                if (!ok)
+                {
+                    sb.AppendLine("系统返回：" + reason);
+                    sb.AppendLine();
+                    sb.AppendLine("建议改用：" + Program.DefaultDir());
+                }
+                MessageBox.Show(this, sb.ToString(), "目录检测",
+                                MessageBoxButtons.OK, ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+            };
+            Controls.Add(test);
 
             _desktop.Text = "创建桌面快捷方式";
             _desktop.Location = new Point(20, 158);
