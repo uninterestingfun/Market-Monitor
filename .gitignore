@@ -10,5 +10,7 @@ wheels/
 _tmp/
 _appdata/
 .tmp-chrome/
+instance.json
+ui-profile/
 *.spec
 *.log

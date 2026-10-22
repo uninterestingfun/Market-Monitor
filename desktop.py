@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import logging.handlers
 import os
@@ -86,6 +87,37 @@ def wait_ready(url: str, timeout: float = 20.0) -> bool:
     return False
 
 
+def _alive(url: str, timeout: float = 1.5) -> bool:
+    try:
+        with urllib.request.urlopen(url + "api/overview", timeout=timeout) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def running_port(directory: str) -> int | None:
+    """已有实例在跑就返回它的端口，避免重复双击起两个服务互相抢端口。"""
+    lock = os.path.join(directory, "instance.json")
+    try:
+        with open(lock, "r", encoding="utf-8") as fh:
+            port = int(json.load(fh).get("port") or 0)
+    except Exception:
+        return None
+    if port and _alive(f"http://127.0.0.1:{port}/"):
+        return port
+    return None
+
+
+def write_lock(directory: str, port: int) -> str:
+    path = os.path.join(directory, "instance.json")
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"port": port, "pid": os.getpid()}, fh)
+    except Exception:
+        logging.warning("无法写入实例锁文件 %s", path)
+    return path
+
+
 def open_window(url: str, directory: str) -> str:
     browser = find_browser()
     if browser:
@@ -137,9 +169,18 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(directory)
     logging.info("启动 %s（frozen=%s）目录=%s", APP_TITLE, is_frozen(), directory)
 
+    # 单实例：已有窗口在跑时，只再开一个窗口指向它，不重复起服务
+    if not args.selftest and not args.no_window:
+        existing = running_port(directory)
+        if existing:
+            logging.info("已有实例运行在 %s，直接打开窗口", existing)
+            open_window(f"http://127.0.0.1:{existing}/", directory)
+            return 0
+
     store = None
     service = None
     httpd = None
+    lock_path = None
     try:
         store = Store(os.path.join(directory, "market.db"))
         service = MarketService(store)
@@ -147,6 +188,8 @@ def main(argv: list[str] | None = None) -> int:
         httpd, port = create_server(service, "127.0.0.1", args.port if args.port else 0)
         url = f"http://127.0.0.1:{port}/"
         threading.Thread(target=httpd.serve_forever, name="http", daemon=True).start()
+        if not args.selftest:
+            lock_path = write_lock(directory, port)
         logging.info("服务已启动 %s", url)
 
         if args.selftest:
@@ -196,6 +239,11 @@ def main(argv: list[str] | None = None) -> int:
         if store:
             try:
                 store.close()
+            except Exception:
+                pass
+        if lock_path:
+            try:
+                os.remove(lock_path)
             except Exception:
                 pass
         logging.info("已退出")
