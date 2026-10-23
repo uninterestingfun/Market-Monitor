@@ -578,14 +578,26 @@ class MarketService:
             "method": "按收盘价在当日高低区间的位置拆分成交额，得到流入/流出占比",
         }
 
+    # 债券市场用可交易品种代表：国债期货 + 国债 ETF（收益率没有成交量）
+    BOND_FLOW_IDS = ("nf.T0", "nf.TF0", "nf.TS0", "sh511260", "sh511010", "sh511090")
+
     def market_flow(self, limit: int = 60) -> Dict[str, Any]:
         """市场资金流：各成员「净流入占比」的平均值（单位无关）。"""
+        bond_ids = set(self.BOND_FLOW_IDS)
+        members = {
+            "A股": [a.id for a in config.assets_of("A股")],
+            "港股": [a.id for a in config.assets_of("港股")],
+            "美股": [a.id for a in config.assets_of("美股")],
+            "ETF": [a.id for a in config.assets_of("ETF") if a.id not in bond_ids],
+            "期货": [a.id for a in config.assets_of("期货") if a.id not in bond_ids],
+            "债券": [i for i in self.BOND_FLOW_IDS if i in config.BY_ID],
+        }
         groups: List[Dict[str, Any]] = []
         all_dates: List[str] = []
-        for group in ("A股", "港股", "美股", "ETF", "期货"):
+        for group, ids in members.items():
             buckets: Dict[str, List[float]] = {}
-            for asset in config.assets_of(group):
-                data = self.flow(asset.id, limit=max(limit, 250))
+            for aid in ids:
+                data = self.flow(aid, limit=max(limit, 250))
                 for date, inflow, outflow, net in data["rows"]:
                     buckets.setdefault(date, []).append(net)
             rows = [[d, round(sum(v) / len(v), 3)] for d, v in sorted(buckets.items())][-limit:]
