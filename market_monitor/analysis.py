@@ -144,14 +144,15 @@ def rolling_metrics(ra: np.ndarray, rb: np.ndarray, window: int) -> Dict[str, np
 
 
 def average_series(series_list: Sequence[np.ndarray]) -> np.ndarray:
-    """多标的时的两两平均：逐点做 nan 平均。"""
+    """多标的时的两两平均：逐点做 nan 平均（全缺失点返回 NaN）。"""
     if not series_list:
         return np.array([])
     stack = np.vstack(series_list)
     valid = ~np.isnan(stack)
     counts = valid.sum(axis=0)
+    totals = np.where(valid, stack, 0.0).sum(axis=0)
     with np.errstate(invalid="ignore", divide="ignore"):
-        mean = np.nanmean(np.where(valid, stack, np.nan), axis=0)
+        mean = totals / np.maximum(counts, 1)
     return np.where(counts > 0, mean, np.nan)
 
 

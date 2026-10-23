@@ -1,3 +1,4 @@
 requests>=2.28
-# 说明：本工具仅依赖 requests；行情解析、Web 服务、SQLite 存储均使用 Python 标准库。
-# Windows / macOS / Linux 自带 Python 3.9+ 即可运行。
+numpy>=1.23
+# 说明：运行只需要 requests + numpy；行情解析、Web 服务、SQLite 存储、前端资源全部走标准库或内置文件。
+# Python 3.9+ 即可，Windows / macOS / Linux 通用。
