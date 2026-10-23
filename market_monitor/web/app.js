@@ -166,7 +166,8 @@
         return `<article class="hero-card" data-id="${id}" tabindex="0">
           <div class="hc-name">${a.name}<span class="hc-tag">${a.tag || ""}</span></div>
           <div class="hc-price" data-role="price">—</div>
-          <div class="hc-delta"><span data-role="pct">—</span><small data-role="chg">—</small></div>
+          <div class="hc-delta"><span data-role="pct">—</span><small data-role="chg">—</small>
+            <small class="hc-vol" data-role="vol"></small></div>
           <div class="hc-spark" data-role="spark"></div>
         </article>`;
       })
@@ -178,6 +179,7 @@
         price: root.querySelector('[data-role="price"]'),
         pct: root.querySelector('[data-role="pct"]'),
         chg: root.querySelector('[data-role="chg"]'),
+        vol: root.querySelector('[data-role="vol"]'),
         spark: root.querySelector('[data-role="spark"]'),
         lastSpark: "",
         lastPrice: null,
@@ -198,6 +200,7 @@
     ref.pct.className = tone(dirOf(a));
     ref.chg.textContent = signed(a.change, a.decimals);
     ref.chg.style.color = colorOf(dirOf(a));
+    ref.vol.textContent = a.volume ? `量 ${fmtVol(a.volume)}` : "";
     const key = a.spark.length + ":" + (a.spark[a.spark.length - 1] ?? "");
     if (key !== ref.lastSpark) {
       ref.lastSpark = key;
@@ -230,6 +233,7 @@
                 <span class="card-pct" data-role="pct">—</span>
               </div>
               <div class="card-spark" data-role="spark"></div>
+              <div class="card-vol" data-role="vol"></div>
             </article>`
             )
             .join("")}
@@ -245,6 +249,7 @@
         price: root.querySelector('[data-role="price"]'),
         pct: root.querySelector('[data-role="pct"]'),
         spark: root.querySelector('[data-role="spark"]'),
+        vol: root.querySelector('[data-role="vol"]'),
         lastPrice: null,
         lastSpark: "",
       };
@@ -280,6 +285,7 @@
       ref.lastSpark = key;
       ref.spark.innerHTML = sparkSVG(a.spark, colorOf(dirOf(a)), 180, 30, "spark");
     }
+    ref.vol.textContent = a.volume ? `量 ${fmtVol(a.volume)}` : "";
   }
 
   /* ─────────────────────────── 详情面板 ───────────────────────── */

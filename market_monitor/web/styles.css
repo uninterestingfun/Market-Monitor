@@ -792,3 +792,21 @@ footer {
   .weight-panel { grid-template-columns: 1fr; }
 }
 
+
+/* 卡片成交量 */
+.card-vol {
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #5d6679;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-vol:empty { display: none; }
+.hero-card .hc-vol {
+  margin-left: auto;
+  color: #4b5468;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
