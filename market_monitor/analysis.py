@@ -205,6 +205,28 @@ def money_flow(bars: Sequence[Sequence[Any]]) -> List[List[Any]]:
     return rows
 
 
+def yield_flow(bars: Sequence[Sequence[Any]], window: int = 20) -> List[List[Any]]:
+    """利率曲线：收益率下行 = 债券净流入，上行 = 净流出。
+
+    收益率没有成交量，用日变动（bp）相对近 window 日波动的比例归一化到 ±100。
+    """
+    rows: List[List[Any]] = []
+    changes: List[float] = []
+    for i in range(1, len(bars)):
+        prev, cur = bars[i - 1][4], bars[i][4]
+        if prev is None or cur is None:
+            continue
+        delta = (float(cur) - float(prev)) * 100.0  # bp
+        changes.append(delta)
+        recent = changes[-window:]
+        sigma = float(np.std(recent)) if len(recent) > 2 else 0.0
+        scale = max(sigma * 2.0, 0.5)
+        net = max(-100.0, min(100.0, -delta / scale * 100.0))
+        inflow = 50.0 + net / 2.0
+        rows.append([bars[i][0], round(inflow, 3), round(100.0 - inflow, 3), round(net, 3)])
+    return rows
+
+
 def summarize_flow(rows: Sequence[Sequence[Any]]) -> Dict[str, Any]:
     """资金流摘要：最近一日、区间累计、平均流入/流出占比。"""
     if not rows:

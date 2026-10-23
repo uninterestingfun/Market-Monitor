@@ -735,7 +735,7 @@
   const mf = { chart: null, data: null, at: 0 };
   const MF_COLORS = {
     "A股": "#ff5468", "港股": "#f6c76b", "美股": "#7dd3fc",
-    "ETF": "#a78bfa", "期货": "#5eead4", "债券": "#f9a8d4",
+    "ETF": "#a78bfa", "期货": "#5eead4", "债券": "#f9a8d4", "利率": "#94a3b8",
   };
 
   async function fetchMarketFlow() {

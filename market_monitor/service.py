@@ -16,7 +16,7 @@ from . import config
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
-    rolling_metrics, summarize_flow, summary,
+    rolling_metrics, summarize_flow, summary, yield_flow,
 )
 from .config import Asset
 from .net import http
@@ -566,16 +566,18 @@ class MarketService:
             rows = cached[1]
         else:
             bars = self.history(asset_id, "day", 0)
-            rows = money_flow(bars[-500:])
+            rows = yield_flow(bars[-500:]) if asset.group == "利率" else money_flow(bars[-500:])
             self._flow_cache[asset_id] = (now, rows)
         rows = rows[-limit:]
+        is_rate = asset.group == "利率"
         return {
             "id": asset.id,
             "name": asset.name,
             "currency": asset.currency,
             "rows": rows,
             "summary": summarize_flow(rows),
-            "method": "按收盘价在当日高低区间的位置拆分成交额，得到流入/流出占比",
+            "method": ("收益率日变动归一化：收益率下行视为净流入" if is_rate
+                       else "按收盘价在当日高低区间的位置拆分成交额，得到流入/流出占比"),
         }
 
     # 债券市场用可交易品种代表：国债期货 + 国债 ETF（收益率没有成交量）
@@ -591,6 +593,7 @@ class MarketService:
             "ETF": [a.id for a in config.assets_of("ETF") if a.id not in bond_ids],
             "期货": [a.id for a in config.assets_of("期货") if a.id not in bond_ids],
             "债券": [i for i in self.BOND_FLOW_IDS if i in config.BY_ID],
+            "利率": [a.id for a in config.assets_of("利率") if a.id.startswith("bond.")],
         }
         groups: List[Dict[str, Any]] = []
         all_dates: List[str] = []
