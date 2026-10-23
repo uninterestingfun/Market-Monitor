@@ -358,7 +358,8 @@ class MarketService:
                     items.append({
                         "id": asset.id, "name": asset.name, "group": asset.group, "kind": asset.kind,
                         "price": None, "change": None, "pct": None, "tag": asset.tag,
-                        "decimals": asset.decimals, "unit": asset.unit, "spark": [], "stale": True,
+                        "decimals": asset.decimals, "unit": asset.unit,
+                        "currency": asset.currency, "spark": [], "stale": True,
                         "source": None, "ts": None, "missing": True,
                     })
                     continue
@@ -382,6 +383,7 @@ class MarketService:
                     "tag": asset.tag,
                     "decimals": asset.decimals,
                     "unit": asset.unit,
+                    "currency": asset.currency,
                     "spark": self._spark(asset.id, q.get("price")),
                     "stale": ok_age > 90,
                     "missing": False,

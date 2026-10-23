@@ -35,6 +35,21 @@ class Asset:
     def is_derived(self) -> bool:
         return self.derived is not None
 
+    @property
+    def currency(self) -> Optional[str]:
+        """计价货币：CNY / USD / HKD；利率与汇率没有货币单位。"""
+        if self.group in ("利率", "汇率"):
+            return None
+        if self.group == "港股":
+            return "HKD"
+        if self.group == "美股":
+            return "USD"
+        if self.group == "ETF":
+            return "USD" if self.tag == "US" else "CNY"
+        if self.group == "期货":
+            return "USD" if self.tag == "INT" else "CNY"
+        return "CNY"
+
 
 def A(
     id: str,

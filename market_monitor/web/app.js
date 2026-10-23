@@ -165,7 +165,7 @@
         if (!a) return "";
         return `<article class="hero-card" data-id="${id}" tabindex="0">
           <div class="hc-name">${a.name}<span class="hc-tag">${a.tag || ""}</span></div>
-          <div class="hc-price" data-role="price">—</div>
+          <div class="hc-price"><span data-role="price">—</span><i class="unit" data-role="unit"></i></div>
           <div class="hc-delta"><span data-role="pct">—</span><small data-role="chg">—</small>
             <small class="hc-vol" data-role="vol"></small></div>
           <div class="hc-spark" data-role="spark"></div>
@@ -177,6 +177,7 @@
       const ref = {
         root,
         price: root.querySelector('[data-role="price"]'),
+        unit: root.querySelector('[data-role="unit"]'),
         pct: root.querySelector('[data-role="pct"]'),
         chg: root.querySelector('[data-role="chg"]'),
         vol: root.querySelector('[data-role="vol"]'),
@@ -196,6 +197,7 @@
     const ref = state.heroRefs.get(a.id);
     if (!ref) return;
     ref.price.textContent = num(a.price, a.decimals);
+    ref.unit.textContent = unitOf(a);
     ref.pct.textContent = deltaText(a);
     ref.pct.className = tone(dirOf(a));
     ref.chg.textContent = signed(a.change, a.decimals);
@@ -229,7 +231,7 @@
                 <span class="card-tag">${a.tag || ""}</span>
               </div>
               <div class="card-mid">
-                <span class="card-price" data-role="price">—</span>
+                <span class="price-wrap"><span class="card-price" data-role="price">—</span><i class="unit" data-role="unit"></i></span>
                 <span class="card-pct" data-role="pct">—</span>
               </div>
               <div class="card-spark" data-role="spark"></div>
@@ -247,6 +249,7 @@
       const ref = {
         root,
         price: root.querySelector('[data-role="price"]'),
+        unit: root.querySelector('[data-role="unit"]'),
         pct: root.querySelector('[data-role="pct"]'),
         spark: root.querySelector('[data-role="spark"]'),
         vol: root.querySelector('[data-role="vol"]'),
@@ -274,6 +277,7 @@
       }
     }
     if (a.price != null) ref.lastPrice = a.price;
+    ref.unit.textContent = unitOf(a);
 
     ref.pct.textContent = deltaText(a);
     ref.pct.className = "card-pct " + tone(dirOf(a));
@@ -291,14 +295,14 @@
   /* ─────────────────────────── 详情面板 ───────────────────────── */
   function renderStats(a) {
     const rows = [
-      ["最新价", num(a.price, a.decimals) + (a.unit || "")],
-      ["涨跌额", signed(a.change, a.decimals)],
+      ["最新价", withUnit(num(a.price, a.decimals), a)],
+      ["涨跌额", withUnit(signed(a.change, a.decimals), a)],
       [a.kind === "spread" ? "变动" : "涨跌幅", deltaText(a)],
     ];
-    if (a.open != null) rows.push(["今开", num(a.open, a.decimals)]);
-    if (a.high != null) rows.push(["最高", num(a.high, a.decimals)]);
-    if (a.low != null) rows.push(["最低", num(a.low, a.decimals)]);
-    if (a.prev_close != null) rows.push(["昨收", num(a.prev_close, a.decimals)]);
+    if (a.open != null) rows.push(["今开", withUnit(num(a.open, a.decimals), a)]);
+    if (a.high != null) rows.push(["最高", withUnit(num(a.high, a.decimals), a)]);
+    if (a.low != null) rows.push(["最低", withUnit(num(a.low, a.decimals), a)]);
+    if (a.prev_close != null) rows.push(["昨收", withUnit(num(a.prev_close, a.decimals), a)]);
     if (a.volume != null) rows.push(["成交量", fmtVol(a.volume)]);
     if (a.amount != null) rows.push(["成交额", fmtVol(a.amount)]);
     rows.push(["更新时间", a.ts || "—"]);
@@ -317,6 +321,7 @@
     $("#chart-sub").textContent = a.id;
     const priceBox = $("#chart-price");
     priceBox.querySelector("strong").textContent = num(a.price, a.decimals);
+    $("#chart-unit").textContent = unitOf(a);
     const delta = priceBox.querySelector(".delta");
     delta.textContent = `${signed(a.change, a.decimals)}  ${deltaText(a)}`;
     delta.style.color = colorOf(dirOf(a));
@@ -1044,6 +1049,21 @@
   }
 
   const anVal = (v) => (v == null ? "—" : v.toFixed(3));
+
+  /* 计价单位：利率用 %，其余按标的货币显示 RMB / 美元 / 港元 */
+  function unitOf(a) {
+    if (!a) return "";
+    if (a.unit) return a.unit;
+    if (a.currency === "CNY") return "RMB";
+    if (a.currency === "USD") return "美元";
+    if (a.currency === "HKD") return "港元";
+    return "";
+  }
+
+  function withUnit(text, a) {
+    const u = unitOf(a);
+    return u ? `${text}<i class="u">${u}</i>` : text;
+  }
 
   function buildPickList(filter = "") {
     const box = $("#asset-list");

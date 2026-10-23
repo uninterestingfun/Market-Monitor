@@ -810,3 +810,12 @@ footer {
   font-family: var(--mono);
   white-space: nowrap;
 }
+
+/* 计价单位 */
+.unit { font-style: normal; font-family: var(--sans); font-weight: 400; color: #5d6679; }
+.hc-price { display: flex; align-items: baseline; gap: 5px; }
+.hc-price .unit { font-size: 11px; letter-spacing: .02em; }
+.card-mid .price-wrap { display: inline-flex; align-items: baseline; gap: 3px; min-width: 0; }
+.card-mid .unit { font-size: 9px; }
+#chart-price .unit { font-size: 11px; margin-right: 2px; }
+.stats dd .u { font-style: normal; font-size: 9.5px; color: #5d6679; margin-left: 3px; font-family: var(--sans); }
