@@ -15,3 +15,5 @@ ui-profile/
 *.spec
 *.log
 installer/payload.zip
+
+.tmp-*/

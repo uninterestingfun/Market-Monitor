@@ -1000,9 +1000,13 @@
     const sel = map.get(state.selected);
     if (sel) renderStats(sel);
 
-    $("#chart-status").textContent = data.updated_at
-      ? `快照更新 ${data.updated_at.replace("T", " ")}`
-      : "等待数据…";
+    // 分时/资金流视图的说明文字由各自渲染函数维护，轮询只更新「最新快照时间」
+    $("#chart-status").textContent =
+      state.mode !== "kline"
+        ? $("#chart-status").textContent
+        : data.updated_at
+          ? `快照更新 ${data.updated_at.replace("T", " ")}`
+          : "等待数据…";
     if (!$("#view-analysis").hidden) initAnalysis();
     if (data.errors && data.errors.length && Date.now() - state.lastError > 30000) {
       state.lastError = Date.now();
@@ -1752,7 +1756,7 @@
       const rangeBtn = e.target.closest("button[data-range]");
       if (!modeBtn && !rangeBtn) return;
       if (modeBtn) {
-        state.mode = "intraday";
+        state.mode = modeBtn.dataset.mode;
       } else {
         state.mode = "kline";
         state.range = rangeBtn.dataset.range;
