@@ -90,6 +90,7 @@
           </div>
           <div class="ranges" id="ranges" role="tablist">
             <button data-mode="intraday" role="tab" title="当日分时走势">分时</button>
+            <button data-mode="flow" role="tab" title="资金流入/流出强度">资金流</button>
             <button data-range="1M" role="tab">1M</button>
             <button data-range="3M" role="tab">3M</button>
             <button data-range="6M" role="tab">6M</button>
@@ -118,6 +119,14 @@
         <div class="perf" id="perf"></div>
         <p class="hint" id="chart-hint"></p>
       </aside>
+    </section>
+
+    <section class="panel market-flow-panel" id="market-flow-panel">
+      <div class="panel-head">
+        <h3>市场资金流 · 净流入占比</h3>
+        <span class="chip" id="mf-status">加载中…</span>
+      </div>
+      <div id="mf-chart" class="mf-chart"></div>
     </section>
 
     <div class="groups" id="groups"></div>

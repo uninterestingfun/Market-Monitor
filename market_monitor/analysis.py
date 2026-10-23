@@ -183,6 +183,41 @@ def composite_series(series_map: Dict[str, np.ndarray], weights: Dict[str, float
     return out
 
 
+def money_flow(bars: Sequence[Sequence[Any]]) -> List[List[Any]]:
+    """按 OHLCV 估算每日资金流强度（成交额占比，单位无关）。
+
+    收盘越靠近当日最高价，视为越多成交是「流入」；越靠近最低价则相反。
+    返回 [[date, inflow_pct, outflow_pct, net_pct], ...]，三者单位都是 %。
+    """
+    rows: List[List[Any]] = []
+    for b in bars:
+        if len(b) < 6:
+            continue
+        date, o, h, l, c = b[0], b[1], b[2], b[3], b[4]
+        if None in (o, h, l, c):
+            continue
+        if h <= l:  # 一字板 / 无波动：中性
+            rows.append([date, 50.0, 50.0, 0.0])
+            continue
+        inflow = (c - l) / (h - l) * 100.0
+        outflow = 100.0 - inflow
+        rows.append([date, round(inflow, 3), round(outflow, 3), round(inflow - outflow, 3)])
+    return rows
+
+
+def summarize_flow(rows: Sequence[Sequence[Any]]) -> Dict[str, Any]:
+    """资金流摘要：最近一日、区间累计、平均流入/流出占比。"""
+    if not rows:
+        return {"latest": None, "cumulative": None, "inflow": None, "outflow": None}
+    last = rows[-1]
+    return {
+        "latest": round(float(last[3]), 3),
+        "cumulative": round(sum(float(r[3]) for r in rows), 2),
+        "inflow": round(sum(float(r[1]) for r in rows) / len(rows), 2),
+        "outflow": round(sum(float(r[2]) for r in rows) / len(rows), 2),
+    }
+
+
 def summary(values: np.ndarray) -> Dict[str, float]:
     """区间统计：最新值、均值、极值。"""
     arr = np.asarray(values, dtype=float)

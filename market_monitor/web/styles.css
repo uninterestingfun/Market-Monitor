@@ -819,3 +819,8 @@ footer {
 .card-mid .unit { font-size: 9px; }
 #chart-price .unit { font-size: 11px; margin-right: 2px; }
 .stats dd .u { font-style: normal; font-size: 9.5px; color: #5d6679; margin-left: 3px; font-family: var(--sans); }
+
+/* 市场资金流 */
+.market-flow-panel { margin-bottom: 22px; padding: 14px 16px 8px; }
+.market-flow-panel .panel-head { margin-bottom: 6px; }
+.mf-chart { height: 210px; width: 100%; }

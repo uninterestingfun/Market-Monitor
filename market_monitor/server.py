@@ -101,6 +101,17 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/intraday":
             self._json(self.service.intraday((query.get("id") or [""])[0]))
             return
+        if path == "/api/flow":
+            aid = (query.get("id") or [""])[0]
+            try:
+                limit = int((query.get("limit") or ["120"])[0])
+            except ValueError:
+                limit = 120
+            self._json(self.service.flow(aid, max(20, min(limit, 500))))
+            return
+        if path == "/api/flow/markets":
+            self._json(self.service.market_flow())
+            return
         if path == "/api/analysis":
             ids = [x for x in (query.get("ids") or [""])[0].split(",") if x]
             try:

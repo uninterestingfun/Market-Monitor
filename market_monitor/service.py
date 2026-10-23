@@ -15,8 +15,8 @@ import numpy as np
 from . import config
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
-    METRICS, average_series, composite_series, normalize_weights,
-    rolling_metrics, summary,
+    METRICS, average_series, composite_series, money_flow, normalize_weights,
+    rolling_metrics, summarize_flow, summary,
 )
 from .config import Asset
 from .net import http
@@ -145,12 +145,14 @@ class MarketService:
         self._last_ok: Dict[str, float] = {}
         self._spark_cache: Dict[str, tuple] = {}
         self._hist_cache: Dict[str, tuple] = {}
+        self._hist_fetch_ts: Dict[str, float] = {}
         self._last_bond = 0.0
         self._last_em = 0.0
         self._last_snapshot = 0.0
         self._errors: List[Dict[str, Any]] = []
         self._analysis_cache: Dict[str, tuple] = {}
         self._intraday_cache: Dict[str, tuple] = {}
+        self._flow_cache: Dict[str, tuple] = {}
         self.last_ping: float = 0.0
         self.download_state: Dict[str, Any] = {
             "running": False, "done": 0, "total": 0, "current": "", "errors": [],
@@ -166,6 +168,7 @@ class MarketService:
         self._thread = threading.Thread(target=self._loop, name="market-refresh", daemon=True)
         self._thread.start()
         threading.Thread(target=self._bootstrap_history, name="bootstrap-history", daemon=True).start()
+        threading.Thread(target=self._warm_flows, name="warm-flows", daemon=True).start()
 
     def stop(self) -> None:
         self._stop.set()
@@ -424,11 +427,13 @@ class MarketService:
         else:
             bars: List[List[Any]] = []
             stored = self.store.get_bars(asset_id, interval)
-            if stored and self._is_fresh(str(stored[-1][0]), interval):
+            fetched_recently = now - self._hist_fetch_ts.get(key, 0) < 900
+            if stored and (self._is_fresh(str(stored[-1][0]), interval) or fetched_recently):
                 # 本地数据仍然新鲜：直接用，避免每次开图都打接口
                 bars = stored
                 self._hist_cache[key] = (now, bars)
             else:
+                self._hist_fetch_ts[key] = now
                 try:
                     bars = fetch_history(asset, interval)
                 except Exception as exc:  # noqa: BLE001 - 远端失败不应影响界面
@@ -451,13 +456,17 @@ class MarketService:
         return bars[-limit:] if limit else bars
 
     def _is_fresh(self, last_ts: str, interval: str) -> bool:
-        """本地最后一根 K 线是否够新；过期才回源拉取。"""
+        """本地最后一根 K 线是否已到「应有的交易日」；没到就回源补当天数据。"""
         try:
             last = date.fromisoformat(str(last_ts)[:10])
         except ValueError:
             return False
-        max_age = {"day": 4, "week": 10, "month": 45}.get(interval, 4)
-        return (date.today() - last).days <= max_age
+        if interval != "day":
+            return (date.today() - last).days <= {"week": 10, "month": 45}.get(interval, 4)
+        expected = date.today()
+        while expected.weekday() >= 5:  # 周末回退到周五
+            expected -= timedelta(days=1)
+        return last >= expected
 
     def _derived_history(self, asset: Asset, interval: str, limit: int) -> List[List[Any]]:
         """派生指标（如 10Y-2Y 利差）由两条收益率曲线按日期对齐相减得到。"""
@@ -544,6 +553,63 @@ class MarketService:
         }
         self._intraday_cache[asset_id] = (now, payload)
         return payload
+
+    # ------------------------------------------------------------ 资金流
+    def flow(self, asset_id: str, limit: int = 120) -> Dict[str, Any]:
+        """单个标的的每日资金流强度（流入 / 流出 / 净流入占比，%）。"""
+        asset = config.BY_ID.get(asset_id)
+        if not asset:
+            return {"error": "unknown asset"}
+        now = time.time()
+        cached = self._flow_cache.get(asset_id)
+        if cached and now - cached[0] < 120:
+            rows = cached[1]
+        else:
+            bars = self.history(asset_id, "day", 0)
+            rows = money_flow(bars[-500:])
+            self._flow_cache[asset_id] = (now, rows)
+        rows = rows[-limit:]
+        return {
+            "id": asset.id,
+            "name": asset.name,
+            "currency": asset.currency,
+            "rows": rows,
+            "summary": summarize_flow(rows),
+            "method": "按收盘价在当日高低区间的位置拆分成交额，得到流入/流出占比",
+        }
+
+    def market_flow(self, limit: int = 60) -> Dict[str, Any]:
+        """市场资金流：各成员「净流入占比」的平均值（单位无关）。"""
+        groups: List[Dict[str, Any]] = []
+        all_dates: List[str] = []
+        for group in ("A股", "港股", "美股", "ETF", "期货"):
+            buckets: Dict[str, List[float]] = {}
+            for asset in config.assets_of(group):
+                data = self.flow(asset.id, limit=max(limit, 250))
+                for date, inflow, outflow, net in data["rows"]:
+                    buckets.setdefault(date, []).append(net)
+            rows = [[d, round(sum(v) / len(v), 3)] for d, v in sorted(buckets.items())][-limit:]
+            if rows:
+                all_dates.append(rows[-1][0])
+            groups.append({
+                "group": group,
+                "rows": rows,
+                "latest": rows[-1][1] if rows else None,
+                "cumulative": round(sum(r[1] for r in rows), 2) if rows else None,
+            })
+        return {"groups": groups, "date": max(all_dates) if all_dates else None,
+                "method": "成员净流入占比的平均值（%）"}
+
+    def _warm_flows(self) -> None:
+        """后台预热资金流缓存，首个请求就不必逐个回源。"""
+        time.sleep(4)
+        for asset in config.ASSETS:
+            if self._stop.is_set():
+                return
+            try:
+                self.flow(asset.id, 250)
+            except Exception:
+                pass
 
     # ------------------------------------------------------------ 关联分析
     ANALYSIS_POINTS = {"1Y": 250, "2Y": 500, "3Y": 750, "ALL": 0}

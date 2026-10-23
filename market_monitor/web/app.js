@@ -1,4 +1,4 @@
-/* 市场监测前端：轮询快照、增量更新卡片、ECharts 蜡烛图 */
+﻿/* 市场监测前端：轮询快照、增量更新卡片、ECharts 蜡烛图 */
 (() => {
   "use strict";
 
@@ -357,7 +357,10 @@
       return;
     }
     state.chart = echarts.init($("#chart"), null, { renderer: "canvas" });
-    window.addEventListener("resize", () => state.chart && state.chart.resize());
+    window.addEventListener("resize", () => {
+      state.chart && state.chart.resize();
+      mf.chart && mf.chart.resize();
+    });
     // 容器尺寸变化（窗口缩放、侧栏折叠）时保持图表自适应
     if (typeof ResizeObserver !== "undefined") {
       new ResizeObserver(() => state.chart && state.chart.resize()).observe($("#chart"));
@@ -615,6 +618,10 @@
         const payload = await res.json();
         state.intradayAt = Date.now();
         renderIntraday(payload);
+      } else if (state.mode === "flow") {
+        const res = await fetch(`/api/flow?id=${encodeURIComponent(state.selected)}&limit=120`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        renderFlow(await res.json());
       } else {
         const res = await fetch(`/api/history?id=${encodeURIComponent(state.selected)}&range=${state.range}`);
         if (!res.ok) throw new Error("HTTP " + res.status);
@@ -623,6 +630,188 @@
     } catch (err) {
       $("#chart-status").textContent = "数据加载失败：" + err.message;
     }
+  }
+
+  /* 资金流：流入 / 流出 / 净流入占比（%） */
+  const pctPoint = (v) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
+
+  function renderFlow(payload) {
+    if (!state.chart) return;
+    const rows = payload.rows || [];
+    if (!rows.length) {
+      state.chart.clear();
+      $("#chart-status").textContent = `${payload.name || ""} 暂无资金流数据（该标的没有成交量）`;
+      $("#chart-source").textContent = "";
+      return;
+    }
+    const dates = rows.map((r) => r[0]);
+    const inflow = rows.map((r) => r[1]);
+    const net = rows.map((r) => r[3]);
+    let acc = 0;
+    const cum = net.map((v) => (acc += v));
+    const ma = net.map((_, i) => {
+      const part = net.slice(Math.max(0, i - 4), i + 1);
+      return part.reduce((a, b) => a + b, 0) / part.length;
+    });
+    const s = payload.summary || {};
+
+    state.chart.setOption(
+      {
+        animation: false,
+        backgroundColor: "transparent",
+        grid: { left: 46, right: 58, top: 30, bottom: 34 },
+        legend: {
+          top: 0, left: 0, itemWidth: 14, itemHeight: 8, itemGap: 14,
+          textStyle: { color: "#8b95a9", fontSize: 10.5 }, inactiveColor: "#3c4557",
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross", crossStyle: { color: "rgba(255,255,255,.2)" } },
+          backgroundColor: "rgba(12,17,27,.96)",
+          borderColor: "rgba(255,255,255,.09)",
+          borderWidth: 1,
+          padding: [8, 11],
+          textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+          formatter: (params) => {
+            if (!params.length) return "";
+            const i = params[0].dataIndex;
+            return `<div style="color:#8b95a9;margin-bottom:4px">${dates[i]}</div>
+              流入 ${inflow[i].toFixed(1)}%　流出 ${(100 - inflow[i]).toFixed(1)}%<br/>
+              <span style="color:${net[i] >= 0 ? UP : DOWN}">净流入 ${pctPoint(net[i])}</span><br/>
+              累计 ${pctPoint(cum[i])}　5日均 ${pctPoint(ma[i])}`;
+          },
+        },
+        xAxis: {
+          type: "category", data: dates, boundaryGap: true,
+          axisLine: { lineStyle: { color: "rgba(255,255,255,.10)" } },
+          axisTick: { show: false },
+          axisLabel: { ...AXIS_LABEL, formatter: (v) => v.slice(5), hideOverlap: true },
+          splitLine: { show: false },
+        },
+        yAxis: [
+          {
+            type: "value", min: -100, max: 100, interval: 50, position: "right",
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { ...AXIS_LABEL, formatter: (v) => v + "%" },
+            splitLine: SPLIT_LINE,
+          },
+          {
+            type: "value", position: "left", scale: true,
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { ...AXIS_LABEL, formatter: (v) => v.toFixed(0) },
+            splitLine: { show: false },
+            name: "累计", nameTextStyle: { color: "#5d6679", fontSize: 9, padding: [0, 0, 0, 6] },
+          },
+        ],
+        series: [
+          {
+            name: "每日净流入（%）",
+            type: "bar",
+            data: net.map((v) => ({ value: v, itemStyle: { color: v >= 0 ? "rgba(255,84,104,.75)" : "rgba(25,196,138,.75)" } })),
+            barMaxWidth: 9,
+            z: 2,
+          },
+          {
+            name: "5日均净流入（%）",
+            type: "line", data: ma, showSymbol: false, z: 4,
+            lineStyle: { width: 1.6, color: "#e8edf7" }, itemStyle: { color: "#e8edf7" },
+          },
+          {
+            name: "累计净流入（%）",
+            type: "line", data: cum, yAxisIndex: 1, showSymbol: false, z: 5,
+            lineStyle: { width: 2.0, color: "#5eead4" }, itemStyle: { color: "#5eead4" },
+          },
+        ],
+      },
+      true
+    );
+
+    $("#chart-status").textContent =
+      `${payload.name} · 最近净流入 ${pctPoint(s.latest)} · 区间累计 ${pctPoint(s.cumulative)}`;
+    $("#chart-source").textContent = "资金流（按成交额位置估算）";
+  }
+
+  /* 市场资金流：各市场净流入占比曲线 */
+  const mf = { chart: null, data: null, at: 0 };
+  const MF_COLORS = { "A股": "#ff5468", "港股": "#f6c76b", "美股": "#7dd3fc", "ETF": "#a78bfa", "期货": "#5eead4" };
+
+  async function fetchMarketFlow() {
+    try {
+      const res = await fetch("/api/flow/markets", { cache: "no-store" });
+      const data = await res.json();
+      mf.data = data;
+      mf.at = Date.now();
+      renderMarketFlow(data);
+    } catch (err) {
+      $("#mf-status").textContent = "市场资金流加载失败";
+    }
+  }
+
+  function renderMarketFlow(data) {
+    const groups = (data.groups || []).filter((g) => g.rows && g.rows.length);
+    if (!groups.length) {
+      $("#mf-status").textContent = "暂无数据";
+      return;
+    }
+    if (!mf.chart) mf.chart = echarts.init($("#mf-chart"));
+    const dates = [...new Set(groups.flatMap((g) => g.rows.map((r) => r[0])))].sort();
+    const series = groups.map((g) => {
+      const map = new Map(g.rows.map((r) => [r[0], r[1]]));
+      const color = MF_COLORS[g.group] || "#8b95a9";
+      let acc = 0;
+      const data = dates.map((d) => {
+        if (!map.has(d)) return null;
+        acc += map.get(d);
+        return Math.round(acc * 100) / 100;
+      });
+      return {
+        name: g.group,
+        type: "line",
+        data,
+        showSymbol: false,
+        connectNulls: true,
+        lineStyle: { width: 1.7, color },
+        itemStyle: { color },
+      };
+    });
+
+    mf.chart.setOption(
+      {
+        animation: false,
+        backgroundColor: "transparent",
+        grid: { left: 46, right: 56, top: 28, bottom: 26 },
+        legend: {
+          top: 0, left: 0, itemWidth: 14, itemHeight: 3, itemGap: 14,
+          textStyle: { color: "#8b95a9", fontSize: 10.5 }, inactiveColor: "#3c4557",
+        },
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "cross", crossStyle: { color: "rgba(255,255,255,.2)" } },
+          backgroundColor: "rgba(12,17,27,.96)",
+          borderColor: "rgba(255,255,255,.09)",
+          borderWidth: 1,
+          padding: [8, 11],
+          textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+        },
+        xAxis: {
+          type: "category", data: dates, boundaryGap: false,
+          axisLine: { lineStyle: { color: "rgba(255,255,255,.10)" } },
+          axisTick: { show: false },
+          axisLabel: { ...AXIS_LABEL, formatter: (v) => v.slice(5), hideOverlap: true },
+          splitLine: { show: false },
+        },
+        yAxis: {
+          type: "value", scale: true, position: "right",
+          axisLine: { show: false }, axisTick: { show: false },
+          axisLabel: { ...AXIS_LABEL, formatter: (v) => v.toFixed(0) },
+          splitLine: SPLIT_LINE,
+          name: "累计占比", nameTextStyle: { color: "#5d6679", fontSize: 9 },
+        },
+        series,
+      },
+      true
+    );
+    $("#mf-status").textContent = `截至 ${data.date || "—"} · 累计净流入占比`;
   }
 
   /* 当日分时：价格折线 + 昨收基准线 + 分钟成交量 */
@@ -833,6 +1022,8 @@
         state.chartKey = "";
         loadChart(true);
       }
+      // 市场资金流每 5 分钟刷新一次
+      if (Date.now() - mf.at > 300000) fetchMarketFlow();
     } catch (err) {
       toast("无法连接本地服务：" + err.message, true);
     } finally {
@@ -1604,6 +1795,7 @@
     setInterval(tickClock, 1000);
     initChart();
     fetchOverview().then(() => loadChart(true));
+    fetchMarketFlow();
     window.addEventListener("hashchange", () => {
       const id = decodeURIComponent(location.hash.slice(1));
       if (id && id !== state.selected) selectAsset(id, { scroll: false });
@@ -1611,9 +1803,10 @@
     try {
       const params = new URLSearchParams(location.search);
       if (params.get("view") === "analysis") switchView("analysis");
-      if (params.get("mode") === "intraday") {
-        state.mode = "intraday";
-        const btn = document.querySelector('#ranges button[data-mode="intraday"]');
+      const modeParam = params.get("mode");
+      if (modeParam === "intraday" || modeParam === "flow") {
+        state.mode = modeParam;
+        const btn = document.querySelector(`#ranges button[data-mode="${modeParam}"]`);
         if (btn) {
           $("#ranges").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
         }
