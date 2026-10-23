@@ -467,6 +467,14 @@
     const option = {
       animation: false,
       backgroundColor: "transparent",
+      title: hasVolume
+        ? [{
+            text: "成交量",
+            left: 10,
+            top: "70%",
+            textStyle: { color: "#5d6679", fontSize: 10, fontWeight: "normal" },
+          }]
+        : [],
       grid: hasVolume
         ? [
             { left: 12, right: 58, top: 16, height: "62%" },
@@ -492,10 +500,11 @@
           const b = bars[i];
           if (p.seriesType === "candlestick") {
             const chg = ((b[4] - b[1]) / (b[1] || 1)) * 100;
+            const vol = b[5] == null ? "" : `<br/>量 ${fmtVol(b[5])}`;
             return `<div style="color:#8b95a9;margin-bottom:4px">${b[0]}</div>
               开 ${num(b[1], d)}　收 ${num(b[4], d)}<br/>
               高 ${num(b[2], d)}　低 ${num(b[3], d)}<br/>
-              <span style="color:${chg >= 0 ? UP : DOWN}">振幅 ${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%</span>`;
+              <span style="color:${chg >= 0 ? UP : DOWN}">涨跌 ${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%</span>${vol}`;
           }
           return `<div style="color:#8b95a9;margin-bottom:4px">${b[0]}</div>${num(b[4], d)}${payload.unit || ""}`;
         },
@@ -678,6 +687,14 @@
     const option = {
       animation: false,
       backgroundColor: "transparent",
+      title: hasVol
+        ? [{
+            text: "成交量",
+            left: 10,
+            top: "72%",
+            textStyle: { color: "#5d6679", fontSize: 10, fontWeight: "normal" },
+          }]
+        : [],
       grid: hasVol
         ? [{ left: 12, right: 58, top: 20, height: "62%" }, { left: 12, right: 58, top: "76%", height: "13%" }]
         : [{ left: 12, right: 58, top: 20, bottom: 36 }],
@@ -696,7 +713,9 @@
           const price = prices[i];
           const pct = prev ? (price / prev - 1) * 100 : null;
           const tone = pct == null ? "" : `<span style="color:${pct >= 0 ? UP : DOWN}"> ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%</span>`;
-          return `<div style="color:#8b95a9;margin-bottom:4px">${times[i]}</div>${num(price, d)}${tone}`;
+          const v = vols[i];
+          const volLine = v == null ? "" : `<br/>量 ${fmtVol(v)}`;
+          return `<div style="color:#8b95a9;margin-bottom:4px">${times[i]}</div>${num(price, d)}${tone}${volLine}`;
         },
       },
       xAxis: [
