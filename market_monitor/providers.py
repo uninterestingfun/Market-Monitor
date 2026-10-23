@@ -25,7 +25,7 @@ CNBC_URL = "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/sy
 
 _RE_LINE = re.compile(r'var\s+hq_str_([^=]+)="([^"]*)"')
 _RE_TENCENT_LINE = re.compile(r'v_([^=]+)="([^"]*)"')
-_RE_JSONP = re.compile(r"\((\[.*\])\)\s*;?\s*$", re.S)
+_RE_JSONP = re.compile(r"\((\[.*\]|\{.*\})\)\s*;?\s*$", re.S)
 _RE_DATE_CN = re.compile(r"^\d{4}[-/]\d{2}[-/]\d{2}$")
 _RE_TIME = re.compile(r"^\d{2}:\d{2}:\d{2}$")
 
@@ -625,6 +625,125 @@ def fetch_history(asset: Asset, interval: str = "day") -> List[List[Any]]:
     if source == "em_cn_yield":
         return _em_cn_yield_series().get(symbol, []) if interval == "day" else []
     return []
+
+
+# ────────────────────────────────────────────────────────────── 分时数据
+def _tencent_minute(code: str, us: bool = False) -> Optional[Dict[str, Any]]:
+    """腾讯分时：A股/ETF/港股用 minute，美股用 usMinute。返回逐分钟价格与成交量。"""
+    path = "usMinute" if us else "minute"
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/{path}/query"
+    try:
+        data = http.get_json(url, params={"code": code}, headers={"Referer": "https://gu.qq.com/"},
+                             timeout=10, min_interval=0.2)
+    except Exception:
+        return None
+    node = ((data or {}).get("data") or {}).get(code) or {}
+    inner = node.get("data") or {}
+    rows = inner.get("data") or []
+    if not rows:
+        return None
+    day = str(inner.get("date") or "")
+    if len(day) == 8 and day.isdigit():
+        day = f"{day[0:4]}-{day[4:6]}-{day[6:8]}"
+    points: List[List[Any]] = []
+    prev_cum = 0.0
+    for raw in rows:
+        parts = str(raw).split()
+        if len(parts) < 2:
+            continue
+        hhmm = parts[0]
+        price = _f(parts[1])
+        cum = _f(parts[2]) if len(parts) > 2 else None
+        if price is None or len(hhmm) != 4:
+            continue
+        vol = None
+        if cum is not None:
+            vol = max(cum - prev_cum, 0.0)
+            prev_cum = cum
+        points.append([f"{hhmm[0:2]}:{hhmm[2:4]}", price, vol])
+    if not points:
+        return None
+    return {"date": day or None, "points": points}
+
+
+def _sina_inner_minute(symbol: str) -> Optional[Dict[str, Any]]:
+    url = ("https://stock2.finance.sina.com.cn/futures/api/jsonp.php/"
+           f"var%20_{symbol}=/InnerFuturesNewService.getFewMinLine?symbol={symbol}&type=1")
+    try:
+        text = http.get_text(url, headers=SINA_HEADERS, timeout=15, min_interval=0.2)
+    except Exception:
+        return None
+    rows = _jsonp(text) or []
+    if not rows:
+        return None
+    latest = max(str(r.get("d", ""))[:10] for r in rows)
+    points = [[str(r["d"])[11:16], _f(r.get("c")), _f(r.get("v"))]
+              for r in rows if str(r.get("d", ""))[:10] == latest and _f(r.get("c")) is not None]
+    return {"date": latest, "points": points} if points else None
+
+
+def _sina_global_minute(symbol: str) -> Optional[Dict[str, Any]]:
+    url = ("https://stock2.finance.sina.com.cn/futures/api/jsonp.php/"
+           f"var%20_{symbol}=/GlobalFuturesService.getGlobalFuturesMinLine?symbol={symbol}&type=1")
+    try:
+        text = http.get_text(url, headers=SINA_HEADERS, timeout=15, min_interval=0.2)
+    except Exception:
+        return None
+    obj = _jsonp(text) or {}
+    rows = obj.get("minLine_1d") or []
+    points: List[List[Any]] = []
+    day = None
+    for r in rows:
+        if not isinstance(r, list) or len(r) < 6:
+            continue
+        if len(r) >= 10:  # 首行带日期
+            day = str(r[0])[:10]
+            tm, price = str(r[4])[:5], _f(r[1])
+        else:
+            tm, price = str(r[0])[:5], _f(r[1])
+        if price is None or ":" not in tm:
+            continue
+        points.append([tm, price, None])
+    if not points:
+        return None
+    return {"date": day, "points": points}
+
+
+def _sina_fx_minute(sina_code: str) -> Optional[Dict[str, Any]]:
+    url = ("https://vip.stock.finance.sina.com.cn/forex/api/jsonp.php/"
+           f"var%20_{sina_code}=/NewForexService.getMinKline?symbol={sina_code}&scale=5&datalen=200")
+    try:
+        text = http.get_text(url, headers=SINA_HEADERS, timeout=15, min_interval=0.2)
+    except Exception:
+        return None
+    rows = _jsonp(text) or []
+    if not rows:
+        return None
+    latest = max(str(r.get("d", ""))[:10] for r in rows)
+    points = [[str(r["d"])[11:16], _f(r.get("c")), None]
+              for r in rows if str(r.get("d", ""))[:10] == latest and _f(r.get("c")) is not None]
+    return {"date": latest, "points": points} if points else None
+
+
+def fetch_intraday(asset: Asset) -> Optional[Dict[str, Any]]:
+    """按标的市场获取当日（或最近交易日）分时序列。"""
+    aid = asset.id
+    try:
+        if aid.startswith("us."):
+            code = asset.tencent or aid.replace("us.", "us")
+            return _tencent_minute(code, us=True)
+        if aid.startswith(("sh", "sz", "bj")) or aid.startswith("hk."):
+            code = asset.tencent or asset.sina
+            return _tencent_minute(code) if code else None
+        if aid.startswith("nf.") and asset.hist:
+            return _sina_inner_minute(asset.hist[1])
+        if aid.startswith("hf.") and asset.hist:
+            return _sina_global_minute(asset.hist[1])
+        if aid.startswith("fx.") and asset.sina and asset.sina.startswith("fx_"):
+            return _sina_fx_minute(asset.sina)
+    except Exception:
+        return None
+    return None
 
 
 def probe_asset(asset: Asset) -> Dict[str, Any]:

@@ -20,7 +20,9 @@ from .analysis import (
 )
 from .config import Asset
 from .net import http
-from .providers import fetch_cnbc, fetch_em_yields, fetch_history, fetch_sina, fetch_tencent
+from .providers import (
+    fetch_cnbc, fetch_em_yields, fetch_history, fetch_intraday, fetch_sina, fetch_tencent,
+)
 from .store import Store
 
 
@@ -148,6 +150,7 @@ class MarketService:
         self._last_snapshot = 0.0
         self._errors: List[Dict[str, Any]] = []
         self._analysis_cache: Dict[str, tuple] = {}
+        self._intraday_cache: Dict[str, tuple] = {}
         self.last_ping: float = 0.0
         self.download_state: Dict[str, Any] = {
             "running": False, "done": 0, "total": 0, "current": "", "errors": [],
@@ -513,6 +516,32 @@ class MarketService:
             else:
                 out.append({"label": label, "value": round((last[4] / base[4] - 1) * 100, 3)})
         return out
+
+    # ------------------------------------------------------------ 分时
+    def intraday(self, asset_id: str) -> Dict[str, Any]:
+        """当日分时（分钟级）；债券等无盘中数据的标的返回空序列。"""
+        asset = config.BY_ID.get(asset_id)
+        if not asset:
+            return {"error": "unknown asset"}
+        now = time.time()
+        cached = self._intraday_cache.get(asset_id)
+        if cached and now - cached[0] < 30:
+            return cached[1]
+        raw = fetch_intraday(asset) or {}
+        with self._lock:
+            quote = dict(self.quotes.get(asset_id) or {})
+        payload = {
+            "id": asset.id,
+            "name": asset.name,
+            "date": raw.get("date"),
+            "points": raw.get("points") or [],
+            "prev_close": quote.get("prev_close"),
+            "price": quote.get("price"),
+            "decimals": asset.decimals,
+            "unit": asset.unit,
+        }
+        self._intraday_cache[asset_id] = (now, payload)
+        return payload
 
     # ------------------------------------------------------------ 关联分析
     ANALYSIS_POINTS = {"1Y": 250, "2Y": 500, "3Y": 750, "ALL": 0}

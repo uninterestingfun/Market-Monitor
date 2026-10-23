@@ -10,10 +10,12 @@
     data: null,
     selected: "sh000001",
     range: "1Y",
+    mode: "kline",
     intervalMs: 4000,
     timer: null,
     chart: null,
     chartKey: "",
+    intradayAt: 0,
     cardRefs: new Map(),
     heroRefs: new Map(),
     tickerItems: [],
@@ -582,17 +584,174 @@
 
   async function loadChart(force = false) {
     if (!state.selected) return;
-    const key = `${state.selected}|${state.range}`;
+    const key = `${state.selected}|${state.mode}|${state.range}`;
     if (!force && key === state.chartKey) return;
     state.chartKey = key;
     $("#chart-status").textContent = "加载中…";
     try {
-      const res = await fetch(`/api/history?id=${encodeURIComponent(state.selected)}&range=${state.range}`);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      renderChart(await res.json());
+      if (state.mode === "intraday") {
+        const res = await fetch(`/api/intraday?id=${encodeURIComponent(state.selected)}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const payload = await res.json();
+        state.intradayAt = Date.now();
+        renderIntraday(payload);
+      } else {
+        const res = await fetch(`/api/history?id=${encodeURIComponent(state.selected)}&range=${state.range}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        renderChart(await res.json());
+      }
     } catch (err) {
-      $("#chart-status").textContent = "历史数据加载失败：" + err.message;
+      $("#chart-status").textContent = "数据加载失败：" + err.message;
     }
+  }
+
+  /* 当日分时：价格折线 + 昨收基准线 + 分钟成交量 */
+  function renderIntraday(payload) {
+    if (!state.chart) return;
+    const pts = payload.points || [];
+    if (!pts.length) {
+      state.chart.clear();
+      $("#chart-status").textContent = `${payload.name || ""} 暂无分时数据（债券等标的没有盘中行情）`;
+      $("#chart-source").textContent = "";
+      return;
+    }
+    const times = pts.map((p) => p[0]);
+    const prices = pts.map((p) => p[1]);
+    const vols = pts.map((p) => (p[2] == null ? null : p[2]));
+    const d = payload.decimals ?? 2;
+    const prev = payload.prev_close;
+    const last = prices[prices.length - 1];
+    const up = prev == null ? true : last >= prev;
+    const color = up ? UP : DOWN;
+    const hasVol = vols.some((v) => v != null && v > 0);
+    const lo = Math.min(...prices, ...(prev != null ? [prev] : []));
+    const hi = Math.max(...prices, ...(prev != null ? [prev] : []));
+    const pad = (hi - lo) * 0.08 || Math.abs(hi * 0.002) || 1;
+
+    const series = [
+      {
+        name: payload.name,
+        type: "line",
+        data: prices,
+        showSymbol: false,
+        lineStyle: { width: 1.8, color },
+        itemStyle: { color },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: up ? "rgba(255,84,104,.28)" : "rgba(25,196,138,.28)" },
+            { offset: 1, color: "rgba(0,0,0,0)" },
+          ]),
+        },
+        markLine: prev == null ? undefined : {
+          silent: true,
+          symbol: "none",
+          label: {
+            show: true,
+            position: "insideEndTop",
+            formatter: `昨收 ${num(prev, d)}`,
+            color: "#5d6679",
+            fontSize: 10,
+          },
+          lineStyle: { color: "rgba(255,255,255,.22)", type: "dashed" },
+          data: [{ yAxis: prev }],
+        },
+      },
+    ];
+    if (hasVol) {
+      series.push({
+        name: "成交量",
+        type: "bar",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: vols,
+        barWidth: "55%",
+        itemStyle: { color: up ? "rgba(255,84,104,.45)" : "rgba(25,196,138,.45)" },
+      });
+    }
+
+    const option = {
+      animation: false,
+      backgroundColor: "transparent",
+      grid: hasVol
+        ? [{ left: 12, right: 58, top: 20, height: "62%" }, { left: 12, right: 58, top: "76%", height: "13%" }]
+        : [{ left: 12, right: 58, top: 20, bottom: 36 }],
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "cross", crossStyle: { color: "rgba(255,255,255,.2)" } },
+        backgroundColor: "rgba(12,17,27,.96)",
+        borderColor: "rgba(255,255,255,.09)",
+        borderWidth: 1,
+        padding: [8, 11],
+        textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+        formatter: (params) => {
+          const p = params[0];
+          if (!p) return "";
+          const i = p.dataIndex;
+          const price = prices[i];
+          const pct = prev ? (price / prev - 1) * 100 : null;
+          const tone = pct == null ? "" : `<span style="color:${pct >= 0 ? UP : DOWN}"> ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%</span>`;
+          return `<div style="color:#8b95a9;margin-bottom:4px">${times[i]}</div>${num(price, d)}${tone}`;
+        },
+      },
+      xAxis: [
+        {
+          type: "category",
+          data: times,
+          boundaryGap: false,
+          axisLine: { lineStyle: { color: "rgba(255,255,255,.10)" } },
+          axisTick: { show: false },
+          axisLabel: { ...AXIS_LABEL, interval: Math.max(1, Math.floor(times.length / 8)), hideOverlap: true },
+          splitLine: { show: false },
+        },
+      ],
+      yAxis: [
+        {
+          type: "value",
+          position: "right",
+          min: +(lo - pad).toFixed(4),
+          max: +(hi + pad).toFixed(4),
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { ...AXIS_LABEL, formatter: (v) => Number(v).toFixed(d) },
+          splitLine: SPLIT_LINE,
+        },
+      ],
+      dataZoom: [{ type: "inside", start: 0, end: 100 }],
+      series,
+    };
+
+    if (hasVol) {
+      option.xAxis.push({
+        type: "category",
+        gridIndex: 1,
+        data: times,
+        boundaryGap: true,
+        axisLine: { lineStyle: { color: "rgba(255,255,255,.08)" } },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      });
+      option.yAxis.push({
+        gridIndex: 1,
+        scale: true,
+        position: "right",
+        splitNumber: 2,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: {
+          ...AXIS_LABEL,
+          formatter: (v) => (v >= 1e8 ? (v / 1e8).toFixed(1) + "亿" : v >= 1e4 ? (v / 1e4).toFixed(0) + "万" : v),
+        },
+        splitLine: { show: false },
+      });
+    }
+
+    state.chart.setOption(option, true);
+
+    const tzNote = (payload.id || "").startsWith("us.") ? "（美东时间）" : "";
+    $("#chart-status").textContent =
+      `${payload.date || ""} · ${times[0]}–${times[times.length - 1]} · ${pts.length} 个点${tzNote}`;
+    $("#chart-source").textContent = "分时";
   }
 
   /* ─────────────────────────── 数据获取 ───────────────────────── */
@@ -639,6 +798,11 @@
       const data = await res.json();
       state.data = data;
       renderAll(data);
+      // 分时视图每 30 秒刷新一次
+      if (state.mode === "intraday" && !document.hidden && Date.now() - state.intradayAt > 30000) {
+        state.chartKey = "";
+        loadChart(true);
+      }
     } catch (err) {
       toast("无法连接本地服务：" + err.message, true);
     } finally {
@@ -1345,10 +1509,18 @@
       toast(state.intervalMs ? `刷新频率 ${state.intervalMs / 1000}s` : "已暂停自动刷新");
     });
     $("#ranges").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-range]");
-      if (!btn) return;
-      state.range = btn.dataset.range;
-      $("#ranges").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+      const modeBtn = e.target.closest("button[data-mode]");
+      const rangeBtn = e.target.closest("button[data-range]");
+      if (!modeBtn && !rangeBtn) return;
+      if (modeBtn) {
+        state.mode = "intraday";
+      } else {
+        state.mode = "kline";
+        state.range = rangeBtn.dataset.range;
+      }
+      const target = modeBtn || rangeBtn;
+      $("#ranges").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === target));
+      state.chartKey = "";
       loadChart(true);
     });
     $("#search").addEventListener("input", (e) => applySearch(e.target.value));
@@ -1392,7 +1564,15 @@
       if (id && id !== state.selected) selectAsset(id, { scroll: false });
     });
     try {
-      if (new URLSearchParams(location.search).get("view") === "analysis") switchView("analysis");
+      const params = new URLSearchParams(location.search);
+      if (params.get("view") === "analysis") switchView("analysis");
+      if (params.get("mode") === "intraday") {
+        state.mode = "intraday";
+        const btn = document.querySelector('#ranges button[data-mode="intraday"]');
+        if (btn) {
+          $("#ranges").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+        }
+      }
     } catch (_) {
       /* 忽略 */
     }

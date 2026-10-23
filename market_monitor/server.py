@@ -98,6 +98,9 @@ class Handler(BaseHTTPRequestHandler):
             limit = int((query.get("limit") or [RANGE_LIMITS.get(rng, 250)])[0])
             self._json(self.service.history_payload(asset_id, interval, limit))
             return
+        if path == "/api/intraday":
+            self._json(self.service.intraday((query.get("id") or [""])[0]))
+            return
         if path == "/api/analysis":
             ids = [x for x in (query.get("ids") or [""])[0].split(",") if x]
             try:
