@@ -1938,6 +1938,30 @@
     renderStockIntraday(data, prev);
     renderStockKline(data);
     renderStockFlow(data);
+    linkStockZoom();
+  }
+
+  let stockZoomSync = false;
+
+  /* 日线图与资金流图双向同步缩放（两者 x 轴都是同一段 250 个交易日） */
+  function linkStockZoom() {
+    const kline = stk.charts["st-kline"];
+    const flow = stk.charts["st-flow"];
+    if (!kline || !flow) return;
+    const bind = (src, dst) => {
+      src.off("datazoom");
+      src.on("datazoom", () => {
+        if (stockZoomSync) return;
+        const opt = src.getOption();
+        const dz = (opt.dataZoom && opt.dataZoom[0]) || {};
+        if (dz.start == null || dz.end == null) return;
+        stockZoomSync = true;
+        dst.dispatchAction({ type: "dataZoom", start: dz.start, end: dz.end });
+        stockZoomSync = false;
+      });
+    };
+    bind(kline, flow);
+    bind(flow, kline);
   }
 
   function renderStockIntraday(data, prev) {
@@ -2024,7 +2048,7 @@
         },
       },
       xAxis: [
-        { type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(2, 7), interval: Math.max(1, Math.floor(dates.length / 9)) } },
+        { type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(2, 7), interval: Math.max(1, Math.floor(dates.length / 8)) } },
         { type: "category", gridIndex: 1, data: dates, ...STK_AXIS, axisLabel: { show: false } },
       ],
       yAxis: [
@@ -2065,6 +2089,7 @@
         borderColor: "rgba(255,255,255,.09)",
         textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
       },
+      dataZoom: [{ type: "inside", start: 0, end: 100 }],
       xAxis: [{ type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(2, 7), interval: Math.max(1, Math.floor(dates.length / 8)) } }],
       yAxis: [
         { type: "value", min: -100, max: 100, position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v + "%" } },
