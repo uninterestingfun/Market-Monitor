@@ -890,3 +890,5 @@ footer {
 .macro-table .idx { color: var(--faint); }
 .macro-table .up { color: var(--up); }
 .macro-table .down { color: var(--down); }
+
+.macro-table .src { font-style: normal; font-size: 9px; color: var(--accent); margin-left: 3px; vertical-align: super; }

@@ -2188,7 +2188,7 @@
           <td>${fmtTrl(r.gni)}</td>
           <td>${fmtUsd(r.gdp_pc)}</td>
           <td>${fmtPct1(r.unemployment)}</td>
-          <td>${fmtPct1(r.debt)}</td>
+          <td title="${r.debt_source || ""}${r.debt_as_of ? " · " + r.debt_as_of : ""}">${fmtPct1(r.debt)}${r.debt_source && r.debt_source !== "世界银行" ? '<i class="src">官</i>' : ""}</td>
           <td>${fmtPct1(r.m2)}</td>
           <td class="${(r.cpi || 0) >= 0 ? "up" : "down"}">${fmtPct1(r.cpi)}</td>
           <td>${r.rate == null ? "—" : r.rate.toFixed(2) + "%"}</td>
@@ -2198,7 +2198,7 @@
       .join("");
     $("#macro-table").innerHTML = head + `<tbody>${body}</tbody>`;
     $("#macro-sub").textContent =
-      `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· ${d.source}`;
+      `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· 带「官」的债务数据来自该国官方统计源 · ${d.source}`;
   }
 
   function bindAnalysis() {

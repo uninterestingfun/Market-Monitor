@@ -10,6 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
+from . import sovereign_debt
 from .net import http
 
 # 前 20 大经济体（按名义 GDP），ISO3 代码
@@ -133,6 +134,22 @@ def snapshot(force: bool = False) -> Dict[str, Any]:
         rows.append(row)
 
     rows.sort(key=lambda r: (r.get("gdp") is None, -(r.get("gdp") or 0)))
+
+    # 各国官方债务源（美国财政部 / 巴西央行）覆盖世界银行数据
+    try:
+        official = sovereign_debt.snapshot({r["code"]: r.get("gdp") for r in rows})
+    except Exception:
+        official = {}
+    for r in rows:
+        ov = official.get(r["code"])
+        if ov:
+            if ov.get("pct") is not None:
+                r["debt"] = ov["pct"]
+            r["debt_source"] = ov.get("source")
+            r["debt_as_of"] = ov.get("as_of")
+            r["debt_amount"] = ov.get("amount")
+        else:
+            r["debt_source"] = "世界银行"
     total = sum((r.get("gdp") or 0) for r in rows)
     for r in rows:
         r["share"] = (r["gdp"] / total * 100) if total and r.get("gdp") else None
