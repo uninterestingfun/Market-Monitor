@@ -2024,14 +2024,14 @@
         },
       },
       xAxis: [
-        { type: "category", data: dates, ...STK_AXIS },
+        { type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(2, 7), interval: Math.max(1, Math.floor(dates.length / 9)) } },
         { type: "category", gridIndex: 1, data: dates, ...STK_AXIS, axisLabel: { show: false } },
       ],
       yAxis: [
         { scale: true, position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => Number(v).toFixed(2) } },
         { gridIndex: 1, scale: true, position: "right", splitNumber: 2, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => fmtVol(v) } },
       ],
-      dataZoom: [{ type: "inside", start: 55, end: 100 }],
+      dataZoom: [{ type: "inside", start: 0, end: 100 }],
       series: [
         {
           type: "candlestick", data: ohlc,
@@ -2065,7 +2065,7 @@
         borderColor: "rgba(255,255,255,.09)",
         textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
       },
-      xAxis: [{ type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(5), interval: Math.max(1, Math.floor(dates.length / 7)) } }],
+      xAxis: [{ type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(2, 7), interval: Math.max(1, Math.floor(dates.length / 8)) } }],
       yAxis: [
         { type: "value", min: -100, max: 100, position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v + "%" } },
         { type: "value", position: "left", scale: true, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.toFixed(0) } },

@@ -866,10 +866,7 @@ footer {
 .stock-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .stock-block h4 { margin: 0 0 4px; font-size: 11.5px; color: var(--faint); font-weight: 500; letter-spacing: .02em; }
 .stock-chart { width: 100%; }
-@media (min-width: 1180px) {
-  .stock-grid { grid-template-columns: 1fr 1fr; }
-  .stock-block:nth-child(2) { grid-column: span 2; }
-}
+/* 个股图统一整行宽度，三张图尺寸一致 */
 
 /* 个股内嵌视图（替换热力图区域） */
 .stk-panel { display: flex; flex-direction: column; gap: 10px; }
