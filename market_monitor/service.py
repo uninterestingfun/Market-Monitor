@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, macro, sectors
+from . import config, macro, sectors, sovereign_debt
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -134,6 +134,10 @@ class MarketService:
     def __init__(self, store: Store, refresh_seconds: float = 4.0, bond_seconds: float = 20.0,
                  em_seconds: float = 1800.0) -> None:
         self.store = store
+        try:
+            sovereign_debt.set_data_dir(os.path.dirname(os.path.abspath(store.path)))
+        except Exception:
+            pass
         self.refresh_seconds = refresh_seconds
         self.bond_seconds = bond_seconds
         self.em_seconds = em_seconds

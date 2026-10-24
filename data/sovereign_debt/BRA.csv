@@ -1,0 +1,14 @@
+# 巴西 主权债务数据（从本国财政部 / 统计局页面导出后粘贴到此处）
+#
+# 列说明：
+#   date        数据日期，YYYY-MM-DD 或 YYYY
+#   debt_pct    债务总额 / GDP，百分比数值（如 131.4）
+#   debt_amount 债务总额，本国货币绝对金额（如 40444342709389）
+#   source      来源说明（会显示在界面上）
+#
+# 规则：
+#   - debt_pct 与 debt_amount 至少填一个；只填 amount 时按最新 GDP 自动换算
+#   - 按 date 排序，程序取最后一条有效记录
+#   - 以 # 开头的行会被忽略
+date,debt_pct,debt_amount,source
+2026-09-30,,,巴西财政部

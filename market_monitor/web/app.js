@@ -2188,7 +2188,7 @@
           <td>${fmtTrl(r.gni)}</td>
           <td>${fmtUsd(r.gdp_pc)}</td>
           <td>${fmtPct1(r.unemployment)}</td>
-          <td title="${r.debt_source || ""}${r.debt_as_of ? " · " + r.debt_as_of : ""}">${fmtPct1(r.debt)}${r.debt_source && r.debt_source !== "世界银行" ? '<i class="src">官</i>' : ""}</td>
+          <td title="${r.debt_source || ""}${r.debt_as_of ? " · " + r.debt_as_of : ""}">${fmtPct1(r.debt)}${r.debt_source && r.debt_source !== "世界银行" ? `<i class="src">${r.debt_source.indexOf("本地") === 0 ? "本" : "官"}</i>` : ""}</td>
           <td>${fmtPct1(r.m2)}</td>
           <td class="${(r.cpi || 0) >= 0 ? "up" : "down"}">${fmtPct1(r.cpi)}</td>
           <td>${r.rate == null ? "—" : r.rate.toFixed(2) + "%"}</td>

@@ -20,7 +20,7 @@
 - **资金流**：按收盘价在当日高低区间的位置拆分成交额，得到每日流入 / 流出占比、5 日均线和累计净流入曲线；另有市场级面板横向对比 A 股 / 港股 / 美股 / ETF / 期货 / **债券** / **利率** 的资金强弱（债券用国债期货 T/TF/TS + 国债 ETF 代表；利率按收益率日变动反向归一化，收益率下行视为净流入）。
 - **个股下钻**：点击树图里的任意个股，右侧区域**就地切换**为个股视图（不弹窗、不跳转）——当日分时、日线 K 线（MA20 + 成交量）、资金流，左上「返回板块」回到热力图。
 - **板块热力图**：新增「板块」视图——左侧 49 个 A 股行业按涨跌幅排序，右侧是行业前 50 只个股的树图，**方块面积 = 总市值、颜色 = 涨跌幅**，并自动匹配该行业的 ETF。
-- **全球宏观**：新增「宏观」视图——前 20 大经济体的 GDP、GNI、人均 GDP、GDP 同比、失业率、政府债务/GDP、广义货币/GDP、CPI、政策利率，按 GDP 排序、点表头可换列排序。债务数据优先取各国官方源（美国财政部 FiscalData、巴西央行 SGS），带「官」标记即为官方口径，其余回落到世界银行。
+- **全球宏观**：新增「宏观」视图——前 20 大经济体的 GDP、GNI、人均 GDP、GDP 同比、失业率、政府债务/GDP、广义货币/GDP、CPI、政策利率，按 GDP 排序、点表头可换列排序。债务数据优先取各国官方源（美国财政部 FiscalData、巴西央行 SGS），带「官」标记即为官方口径；也支持把你从各国财政部导出的 CSV 放进 `data/sovereign_debt/` 覆盖（标记「本」）。
 
 ![宏观](docs/macro.png)
 
@@ -100,6 +100,26 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1
 
 产物：`dist\MarketMonitor\`（目录）、`dist\MarketMonitor-portable.zip`、`dist\MarketMonitor-Setup.exe`。
 安装器由 `installer\Installer.cs` 用系统自带的 `csc.exe` 编译（.NET Framework 4.x），payload 作为程序集资源内嵌。
+
+### 自定义主权债务数据（本地 CSV）
+
+各国财政部导出的数据可以手动放进 `data/sovereign_debt/`，程序会**优先使用**，覆盖世界银行与内置接口，界面上标记「本」。
+
+```bash
+python run.py debt-template          # 生成 20 个国家的 CSV 模板
+```
+
+文件名为 ISO3 代码（`USA.csv`、`JPN.csv`…），格式：
+
+```csv
+date,debt_pct,debt_amount,source
+2026-06-30,248.7,,日本财务省
+```
+
+- `date` 支持 `YYYY-MM-DD` 或 `YYYY`；
+- `debt_pct` 与 `debt_amount` **至少填一个**，只填金额时按最新 GDP 自动换算百分比；
+- 以 `#` 开头的行会被忽略；
+- 程序按日期排序取最后一条有效记录，改完文件刷新页面即可生效（缓存 1 小时）。
 
 ## 命令
 

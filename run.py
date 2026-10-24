@@ -184,6 +184,17 @@ def cmd_list(args: argparse.Namespace) -> None:
             print(f"    {a.id:<16} {a.name:<16} hist={a.hist[0] if a.hist else '-'}")
 
 
+
+def cmd_debt_template(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import sovereign_debt
+
+    count = sovereign_debt.write_templates(args.dir)
+    target = os.path.join(args.dir, "sovereign_debt")
+    print(f"  已生成 {count} 个模板: {target}")
+    print("  把各国财政部导出的数据填进对应 CSV，程序会自动优先使用。")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -202,6 +213,10 @@ def main() -> None:
     p_check = sub.add_parser("check", help="接口自检")
     p_check.add_argument("--history", action="store_true")
     p_check.set_defaults(func=cmd_check)
+
+    p_tpl = sub.add_parser("debt-template", help="生成各国主权债务 CSV 模板")
+    p_tpl.add_argument("--dir", default="data")
+    p_tpl.set_defaults(func=cmd_debt_template)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)
