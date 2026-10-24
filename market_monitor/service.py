@@ -596,27 +596,42 @@ class MarketService:
     # 债券市场用可交易品种代表：国债期货 + 国债 ETF（收益率没有成交量）
     BOND_FLOW_IDS = ("nf.T0", "nf.TF0", "nf.TS0", "sh511260", "sh511010", "sh511090")
 
-    def market_flow(self, limit: int = 60) -> Dict[str, Any]:
-        """市场资金流：各成员「净流入占比」的平均值（单位无关）。"""
+    @staticmethod
+    def _etf_market(asset) -> str:
+        """按 ETF 追踪标的所属市场分类。"""
+        name = asset.name or ""
+        if any(k in name for k in ("恒生", "港股", "香港")):
+            return "港股"
+        if any(k in name for k in ("纳指", "标普", "道指", "美国", "SPY", "QQQ", "TLT")):
+            return "美股"
+        return "A股"
+
+    def market_flow(self, limit: int = 0) -> Dict[str, Any]:
+        """市场资金流：各成员「净流入占比」的平均值（单位无关）。limit=0 表示全部历史。"""
         bond_ids = set(self.BOND_FLOW_IDS)
         members = {
             "A股": [a.id for a in config.assets_of("A股")],
             "港股": [a.id for a in config.assets_of("港股")],
             "美股": [a.id for a in config.assets_of("美股")],
-            "ETF": [a.id for a in config.assets_of("ETF") if a.id not in bond_ids],
             "期货": [a.id for a in config.assets_of("期货") if a.id not in bond_ids],
             "债券": [i for i in self.BOND_FLOW_IDS if i in config.BY_ID],
             "利率": [a.id for a in config.assets_of("利率") if a.id.startswith("bond.")],
         }
+        for a in config.assets_of("ETF"):
+            if a.id in bond_ids:
+                continue
+            members.setdefault(f"ETF({self._etf_market(a)})", []).append(a.id)
         groups: List[Dict[str, Any]] = []
         all_dates: List[str] = []
         for group, ids in members.items():
             buckets: Dict[str, List[float]] = {}
             for aid in ids:
-                data = self.flow(aid, limit=max(limit, 250))
+                data = self.flow(aid, limit=max(limit, 2500))
                 for date, inflow, outflow, net in data["rows"]:
                     buckets.setdefault(date, []).append(net)
-            rows = [[d, round(sum(v) / len(v), 3)] for d, v in sorted(buckets.items())][-limit:]
+            rows = [[d, round(sum(v) / len(v), 3)] for d, v in sorted(buckets.items())]
+            if limit:
+                rows = rows[-limit:]
             if rows:
                 all_dates.append(rows[-1][0])
             groups.append({

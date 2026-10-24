@@ -736,7 +736,8 @@
   const mf = { chart: null, data: null, at: 0 };
   const MF_COLORS = {
     "A股": "#ff5468", "港股": "#f6c76b", "美股": "#7dd3fc",
-    "ETF": "#a78bfa", "期货": "#5eead4", "债券": "#f9a8d4", "利率": "#94a3b8",
+    "ETF(A股)": "#a78bfa", "ETF(美股)": "#c4b5fd", "ETF(港股)": "#fbbf24",
+    "期货": "#5eead4", "债券": "#f9a8d4", "利率": "#94a3b8",
   };
 
   async function fetchMarketFlow() {
@@ -811,6 +812,7 @@
           splitLine: SPLIT_LINE,
           name: "累计占比", nameTextStyle: { color: "#5d6679", fontSize: 9 },
         },
+        dataZoom: [{ type: "inside", start: 0, end: 100 }],
         series,
       },
       true
