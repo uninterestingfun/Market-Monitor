@@ -90,6 +90,10 @@ class Handler(BaseHTTPRequestHandler):
             self.service.ping()
             self._json({"ok": True})
             return
+        if path == "/api/bye":
+            self.service.farewell()
+            self._json({"ok": True})
+            return
         if path == "/api/overview":
             self._json(self.service.snapshot())
             return

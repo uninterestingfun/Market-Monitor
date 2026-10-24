@@ -137,7 +137,7 @@ def write_lock(directory: str, port: int) -> str:
     return path
 
 
-def wait_for_window(service, proc=None, first_timeout: float = 180.0, idle_timeout: float = 30.0) -> str:
+def wait_for_window(service, proc=None, first_timeout: float = 180.0, idle_timeout: float = 180.0) -> str:
     """用页面心跳判断窗口生命周期。
 
     浏览器（Edge/Chrome）的启动进程常常立刻退出、把窗口交给已有实例，
@@ -148,6 +148,8 @@ def wait_for_window(service, proc=None, first_timeout: float = 180.0, idle_timeo
     while True:
         now = time.time()
         last = float(getattr(service, "last_ping", 0.0) or 0.0)
+        if getattr(service, "bye", False):
+            return "closed"
         if last:
             if now - last > idle_timeout:
                 return "closed"
@@ -169,6 +171,9 @@ def open_window(url: str, directory: str, service=None, wait: bool = True) -> st
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-features=Translate,MediaRouter",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
         ]
         logging.info("打开应用窗口: %s", browser)
         subprocess.Popen(args)

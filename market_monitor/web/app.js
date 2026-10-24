@@ -2476,6 +2476,14 @@
     const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
     ping();
     setInterval(ping, 5000);
+    // 关闭窗口时主动告知服务端，桌面版可立即退出（不必等心跳超时）
+    window.addEventListener("beforeunload", () => {
+      try {
+        navigator.sendBeacon("/api/bye");
+      } catch (_) {
+        /* 忽略 */
+      }
+    });
     const hash = decodeURIComponent((location.hash || "").slice(1));
     if (hash) state.selected = hash;
     tickClock();

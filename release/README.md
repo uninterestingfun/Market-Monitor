@@ -2,7 +2,7 @@
 
 | 文件 | 说明 | SHA-256 |
 | --- | --- | --- |
-| `MarketMonitor-Setup.exe` | Windows 安装包（24.9 MB） | `a606db0023f5cab07c29b22c35f6f8413f2fd1082ce75f8a7d1594787ab8b440` |
+| `MarketMonitor-Setup.exe` | Windows 安装包（24.9 MB） | `f40d6d6a60f3d79fa6e3ff53b77fdb6ee86c8a69d06e1e3f94a45dc0230591b1` |
 
 - 双击安装，选择目录（默认 `%LOCALAPPDATA%\Programs\MarketMonitor`）。
 - 首次启动会拉取全部行情历史，约 1 分钟。

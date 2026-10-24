@@ -160,6 +160,7 @@ class MarketService:
         self._flow_cache: Dict[str, tuple] = {}
         self._stock_cache: Dict[str, tuple] = {}
         self.last_ping: float = 0.0
+        self.bye = False
         self.download_state: Dict[str, Any] = {
             "running": False, "done": 0, "total": 0, "current": "", "errors": [],
             "started_at": None, "finished_at": None,
@@ -185,6 +186,10 @@ class MarketService:
     def ping(self) -> None:
         """前端心跳：桌面版据此判断窗口是否还开着。"""
         self.last_ping = time.time()
+
+    def farewell(self) -> None:
+        """页面关闭前主动通知，桌面版可立即退出。"""
+        self.bye = True
 
     def _loop(self) -> None:
         while not self._stop.is_set():
