@@ -892,3 +892,17 @@ footer {
 .macro-table .down { color: var(--down); }
 
 .macro-table .src { font-style: normal; font-size: 9px; color: var(--accent); margin-left: 3px; vertical-align: super; }
+
+/* 市场切换分段控件 */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { height: 26px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button:hover { color: var(--text); }
+.seg button.active { background: rgba(94,234,212,.12); color: var(--accent); }
+
+/* 债券视图 */
+.bonds-panel { padding: 16px 18px 12px; }
+.bonds-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 16px; }
+@media (max-width: 1100px) { .bonds-grid { grid-template-columns: 1fr; } }
+.bonds-block h4 { margin: 0 0 4px; font-size: 11.5px; color: var(--faint); font-weight: 500; }
+.bonds-chart { height: 300px; width: 100%; }

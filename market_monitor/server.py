@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import macro, sectors
+from . import bonds, macro, sectors, us_sectors
 from .service import MarketService
 
 
@@ -126,15 +126,27 @@ class Handler(BaseHTTPRequestHandler):
             self._json(self.service.stock(code))
             return
         if path == "/api/sectors":
-            self._json({"industries": sectors.industries()})
+            market = (query.get("market") or ["cn"])[0].lower()
+            if market == "us":
+                self._json({"market": "us", "industries": us_sectors.industries()})
+            else:
+                self._json({"market": "cn", "industries": sectors.industries()})
             return
         if path == "/api/sectors/board":
             node = (query.get("node") or [""])[0]
+            market = (query.get("market") or ["cn"])[0].lower()
             try:
                 limit = int((query.get("limit") or ["50"])[0])
             except ValueError:
                 limit = 50
-            self._json(sectors.board(node, max(10, min(limit, 100))))
+            limit = max(10, min(limit, 100))
+            if market == "us":
+                self._json(us_sectors.board(node, limit))
+            else:
+                self._json(sectors.board(node, limit))
+            return
+        if path == "/api/bonds":
+            self._json(bonds.snapshot(self.service.quote_map()))
             return
         if path == "/api/analysis":
             ids = [x for x in (query.get("ids") or [""])[0].split(",") if x]

@@ -1655,6 +1655,7 @@
     $("#view-market").hidden = name !== "market";
     $("#view-sectors").hidden = name !== "sectors";
     $("#view-macro").hidden = name !== "macro";
+    $("#view-bonds").hidden = name !== "bonds";
     $("#view-analysis").hidden = name !== "analysis";
     try {
       const url = new URL(location.href);
@@ -1669,6 +1670,9 @@
       setTimeout(() => sec.chart && sec.chart.resize(), 60);
     } else if (name === "macro") {
       initMacro();
+    } else if (name === "bonds") {
+      initBonds();
+      setTimeout(() => Object.values(bd.charts).forEach((c) => c.resize()), 80);
     } else if (name === "analysis") {
       initAnalysis();
       if (!an.chart) an.chart = echarts.init($("#an-chart"));
@@ -1687,7 +1691,7 @@
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */
-  const sec = { list: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null };
+  const sec = { list: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn" };
 
   function secColor(pct) {
     const p = Math.max(-6, Math.min(6, pct || 0));
@@ -1704,6 +1708,16 @@
     }
     if (!sec.bound) {
       sec.bound = true;
+      $("#sec-market").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-market]");
+        if (!btn || btn.dataset.market === sec.market) return;
+        sec.market = btn.dataset.market;
+        $("#sec-market").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+        sec.list = [];
+        sec.node = "";
+        closeStock();
+        loadSectors();
+      });
       $("#sec-list").addEventListener("click", (e) => {
         const item = e.target.closest(".sec-item");
         if (item && item.dataset.node && item.dataset.node !== sec.node) {
@@ -1726,7 +1740,7 @@
   async function loadSectors() {
     $("#sec-list").innerHTML = `<div class="sec-empty">行业数据加载中…</div>`;
     try {
-      const res = await fetch("/api/sectors", { cache: "no-store" });
+      const res = await fetch(`/api/sectors?market=${sec.market}`, { cache: "no-store" });
       const data = await res.json();
       sec.list = data.industries || [];
       if (!sec.list.length) {
@@ -1767,7 +1781,7 @@
     const info = sec.list.find((i) => i.node === node);
     $("#sec-sub").textContent = `${info ? info.name : node} · 成分股加载中…`;
     try {
-      const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50`);
+      const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50&market=${sec.market}`);
       sec.board = await res.json();
       renderTreemap(sec.board);
     } catch (err) {
@@ -1788,9 +1802,11 @@
     $("#sec-sub").textContent = secSubText(data);
     $("#sec-badges").innerHTML = [
       `<span class="chip">行业涨跌 <b class="${data.pct >= 0 ? "up" : "down"}">${data.pct >= 0 ? "+" : ""}${data.pct}%</b></span>`,
-      data.etf
-        ? `<span class="chip">行业ETF ${data.etf.name} <b class="${data.etf.pct >= 0 ? "up" : "down"}">${data.etf.pct >= 0 ? "+" : ""}${data.etf.pct}%</b></span>`
-        : `<span class="chip muted">未匹配到行业 ETF</span>`,
+      sec.market === "us"
+        ? `<span class="chip muted">美股 · 按 sector 分类</span>`
+        : data.etf
+          ? `<span class="chip">行业ETF ${data.etf.name} <b class="${data.etf.pct >= 0 ? "up" : "down"}">${data.etf.pct >= 0 ? "+" : ""}${data.etf.pct}%</b></span>`
+          : `<span class="chip muted">未匹配到行业 ETF</span>`,
       `<span class="chip muted">点击方块可跳转行情</span>`,
     ].join("");
 
@@ -1809,7 +1825,7 @@
             if (d.code == null) return "";
             const pct = d.pct == null ? "—" : `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(2)}%`;
             return `<div style="color:#8b95a9">${d.code}</div><b>${d.name}</b><br/>
-              市值 ${(d.value / 1e8).toFixed(0)} 亿<br/>
+              市值 ${secCapText(d.value)}<br/>
               <span style="color:${(d.pct || 0) >= 0 ? UP : DOWN}">${pct}</span>`;
           },
         },
@@ -1867,11 +1883,16 @@
     return stk.charts[id];
   }
 
+  function secCapText(v) {
+    if (sec.market === "us") return `$${(v / 1e12).toFixed(2)} 万亿`;
+    return `${(v / 1e8).toFixed(0)} 亿`;
+  }
+
   function secSubText(data) {
     if (!data) return "选择左侧行业";
     const rows = data.members || [];
     const total = rows.reduce((a, m) => a + (m.mktcap || 0), 0);
-    return `${data.name} · 共 ${data.count} 只 · 前 ${rows.length} 只合计 ${(total / 1e8).toFixed(0)} 亿`;
+    return `${data.name} · 共 ${data.count} 只 · 前 ${rows.length} 只合计 ${secCapText(total)}`;
   }
 
   function closeStock() {
@@ -2201,6 +2222,118 @@
       `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· 带「官」的债务数据来自该国官方统计源 · ${d.source}`;
   }
 
+
+  /* ─────────────────────────── 债券市场 ─────────────────────────── */
+  const bd = { data: null, charts: {}, bound: false, loading: false };
+
+  function initBonds() {
+    if (!bd.bound) {
+      bd.bound = true;
+      $("#bonds-refresh").addEventListener("click", () => loadBonds(true));
+    }
+    if (!bd.data) loadBonds();
+  }
+
+  async function loadBonds(force) {
+    if (bd.loading) return;
+    bd.loading = true;
+    $("#bonds-sub").textContent = "加载中…";
+    try {
+      const res = await fetch("/api/bonds" + (force ? "?refresh=1" : ""), { cache: "no-store" });
+      bd.data = await res.json();
+      renderBonds();
+    } catch (err) {
+      $("#bonds-sub").textContent = "加载失败：" + err.message;
+    } finally {
+      bd.loading = false;
+    }
+  }
+
+  function bondChart(id) {
+    if (!bd.charts[id]) {
+      const el = $("#" + id);
+      if (el) bd.charts[id] = echarts.init(el);
+    }
+    return bd.charts[id];
+  }
+
+  function renderBonds() {
+    const d = bd.data || {};
+    const curves = d.curves || {};
+    const terms = ["2Y", "5Y", "10Y", "30Y"];
+    const curve = bondChart("bond-curve");
+    if (curve) {
+      const pick = (m) => {
+        const rows = curves[m] || [];
+        const map = new Map(rows.map((r) => [r.term, r.value]));
+        return terms.map((t) => (map.has(t) ? map.get(t) : null));
+      };
+      curve.setOption({
+        animation: false,
+        backgroundColor: "transparent",
+        grid: { left: 44, right: 30, top: 34, bottom: 28 },
+        legend: { top: 0, left: 0, itemWidth: 14, itemHeight: 3, textStyle: { color: "#8b95a9", fontSize: 10.5 } },
+        tooltip: {
+          trigger: "axis",
+          backgroundColor: "rgba(12,17,27,.96)",
+          borderColor: "rgba(255,255,255,.09)",
+          textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+          valueFormatter: (v) => (v == null ? "—" : v.toFixed(3) + "%"),
+        },
+        xAxis: { type: "category", data: terms, ...STK_AXIS },
+        yAxis: {
+          type: "value", scale: true, position: "right", ...STK_AXIS,
+          axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.toFixed(1) + "%" },
+        },
+        series: [
+          { name: "中国国债", type: "line", data: pick("CN"), connectNulls: true, symbolSize: 7, lineStyle: { width: 2, color: "#ff5468" }, itemStyle: { color: "#ff5468" } },
+          { name: "美国国债", type: "line", data: pick("US"), connectNulls: true, symbolSize: 7, lineStyle: { width: 2, color: "#7dd3fc" }, itemStyle: { color: "#7dd3fc" } },
+        ],
+      }, true);
+    }
+
+    const iss = d.issuance || {};
+    const issue = bondChart("bond-issue");
+    if (issue) {
+      const colors = { Bill: "#f6c76b", Note: "#7dd3fc", Bond: "#a78bfa", TIPS: "#5eead4", FRN: "#f9a8d4" };
+      issue.setOption({
+        animation: false,
+        backgroundColor: "transparent",
+        grid: { left: 44, right: 30, top: 34, bottom: 28 },
+        legend: { top: 0, left: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: "#8b95a9", fontSize: 10.5 } },
+        tooltip: {
+          trigger: "axis",
+          backgroundColor: "rgba(12,17,27,.96)",
+          borderColor: "rgba(255,255,255,.09)",
+          textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+        },
+        xAxis: { type: "category", data: iss.months || [], ...STK_AXIS },
+        yAxis: { type: "value", position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.toFixed(0) } },
+        series: (iss.types || []).map((t) => ({
+          name: t,
+          type: "bar",
+          stack: "amt",
+          data: (iss.series || {})[t] || [],
+          itemStyle: { color: colors[t] || "#8b95a9" },
+          barMaxWidth: 26,
+        })),
+      }, true);
+    }
+
+    const parts = [];
+    if (curves.CN && curves.CN.length) {
+      const c = curves.CN.find((p) => p.term === "10Y");
+      if (c) parts.push(`中债 10Y ${c.value.toFixed(3)}%`);
+    }
+    if (curves.US && curves.US.length) {
+      const c = curves.US.find((p) => p.term === "10Y");
+      if (c) parts.push(`美债 10Y ${c.value.toFixed(3)}%`);
+    }
+    parts.push(`更新于 ${d.updated_at || "—"}`);
+    parts.push("中债发行量暂无稳定免费源");
+    $("#bonds-sub").textContent = parts.join(" · ");
+  }
+
   function bindAnalysis() {
     document.querySelectorAll("#view-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2334,6 +2467,7 @@
       if (params.get("view") === "analysis") switchView("analysis");
       if (params.get("view") === "sectors") switchView("sectors");
       if (params.get("view") === "macro") switchView("macro");
+      if (params.get("view") === "bonds") switchView("bonds");
       const modeParam = params.get("mode");
       if (modeParam === "intraday" || modeParam === "flow") {
         state.mode = modeParam;
