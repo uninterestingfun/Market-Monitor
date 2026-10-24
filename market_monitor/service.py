@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config
+from . import config, sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -169,6 +169,7 @@ class MarketService:
         self._thread.start()
         threading.Thread(target=self._bootstrap_history, name="bootstrap-history", daemon=True).start()
         threading.Thread(target=self._warm_flows, name="warm-flows", daemon=True).start()
+        threading.Thread(target=sectors.warm, name="warm-sectors", daemon=True).start()
 
     def stop(self) -> None:
         self._stop.set()

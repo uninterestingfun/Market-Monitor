@@ -824,3 +824,30 @@ footer {
 .market-flow-panel { margin-bottom: 22px; padding: 14px 16px 8px; }
 .market-flow-panel .panel-head { margin-bottom: 6px; }
 .mf-chart { height: 210px; width: 100%; }
+
+/* ───────────── 行业热力图 ───────────── */
+.sectors-panel { padding: 16px 18px 18px; }
+.sectors-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.sectors-title h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.sectors-title h2 .muted { font-size: 11px; color: var(--faint); font-weight: 400; margin-left: 6px; }
+.sectors-sub { margin-top: 4px; font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
+.sectors-actions { display: flex; gap: 8px; align-items: center; }
+.sec-search { width: 170px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--text); font-size: 12px; outline: none; }
+.sec-search:focus { border-color: rgba(94,234,212,.4); }
+.sectors-body { display: grid; grid-template-columns: 246px minmax(0, 1fr); gap: 14px; }
+.sec-list { max-height: 640px; overflow: auto; border-right: 1px solid var(--line-soft); padding-right: 8px; }
+.sec-item { display: grid; grid-template-columns: minmax(0,1fr) 30px 62px; align-items: center; gap: 6px; width: 100%; padding: 7px 8px; border-radius: 8px; background: transparent; border: 0; color: var(--text); font-size: 12px; cursor: pointer; text-align: left; }
+.sec-item:hover { background: var(--panel-hover); }
+.sec-item.active { background: rgba(94,234,212,.10); }
+.sec-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-count { color: var(--faint); font-size: 10.5px; text-align: right; font-family: var(--mono); }
+.sec-pct { text-align: right; font-family: var(--mono); font-size: 11.5px; }
+.sec-pct.up { color: var(--up); }
+.sec-pct.down { color: var(--down); }
+.sec-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sec-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.sec-badges .chip b { font-weight: 600; margin-left: 3px; }
+.sec-badges .chip b.up { color: var(--up); }
+.sec-badges .chip b.down { color: var(--down); }
+.sec-chart { height: 620px; width: 100%; }
+.sec-empty { padding: 16px; color: var(--faint); font-size: 12px; }

@@ -1653,16 +1653,20 @@
       b.classList.toggle("active", b.dataset.view === name);
     });
     $("#view-market").hidden = name !== "market";
+    $("#view-sectors").hidden = name !== "sectors";
     $("#view-analysis").hidden = name !== "analysis";
     try {
       const url = new URL(location.href);
-      if (name === "analysis") url.searchParams.set("view", "analysis");
+      if (name !== "market") url.searchParams.set("view", name);
       else url.searchParams.delete("view");
       history.replaceState(null, "", url);
     } catch (_) {
       /* 忽略 */
     }
-    if (name === "analysis") {
+    if (name === "sectors") {
+      initSectors();
+      setTimeout(() => sec.chart && sec.chart.resize(), 60);
+    } else if (name === "analysis") {
       initAnalysis();
       if (!an.chart) an.chart = echarts.init($("#an-chart"));
       if (typeof ResizeObserver !== "undefined" && !an.observer) {
@@ -1677,6 +1681,171 @@
     } else if (state.chart) {
       state.chart.resize();
     }
+  }
+
+  /* ─────────────────────────── 行业热力图 ─────────────────────────── */
+  const sec = { list: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null };
+
+  function secColor(pct) {
+    const p = Math.max(-6, Math.min(6, pct || 0));
+    const t = Math.abs(p) / 6;
+    const base = p >= 0 ? [229, 72, 93] : [26, 156, 110];
+    const alpha = 0.35 + 0.5 * t;
+    return `rgba(${base[0]},${base[1]},${base[2]},${alpha.toFixed(2)})`;
+  }
+
+  function initSectors() {
+    if (!sec.chart) {
+      const el = $("#sec-chart");
+      if (el && el.clientHeight > 10) sec.chart = echarts.init(el);
+    }
+    if (!sec.bound) {
+      sec.bound = true;
+      $("#sec-search").addEventListener("input", (e) => {
+        sec.keyword = e.target.value.trim();
+        renderSecList();
+      });
+      $("#sec-sort").addEventListener("click", () => {
+        sec.sortAsc = !sec.sortAsc;
+        $("#sec-sort").textContent = sec.sortAsc ? "按涨幅 ↑" : "按涨幅 ↓";
+        renderSecList();
+      });
+    }
+    if (!sec.list.length) loadSectors();
+  }
+
+  async function loadSectors() {
+    $("#sec-list").innerHTML = `<div class="sec-empty">行业数据加载中…</div>`;
+    try {
+      const res = await fetch("/api/sectors", { cache: "no-store" });
+      const data = await res.json();
+      sec.list = data.industries || [];
+      if (!sec.list.length) {
+        $("#sec-list").innerHTML = `<div class="sec-empty">暂无行业数据</div>`;
+        return;
+      }
+      renderSecList();
+      if (!sec.node) {
+        const preferred =
+          sec.list.find((i) => i.name.includes("电子信息")) ||
+          sec.list.slice().sort((a, b) => b.count - a.count)[0];
+        selectIndustry(preferred.node);
+      }
+    } catch (err) {
+      $("#sec-list").innerHTML = `<div class="sec-empty">加载失败：${err.message}</div>`;
+    }
+  }
+
+  function renderSecList() {
+    const kw = sec.keyword;
+    const rows = sec.list.filter((i) => !kw || i.name.includes(kw));
+    rows.sort((a, b) => (sec.sortAsc ? a.pct - b.pct : b.pct - a.pct));
+    $("#sec-list").innerHTML = rows
+      .map(
+        (i) => `<button class="sec-item ${i.node === sec.node ? "active" : ""}" data-node="${i.node}">
+          <span class="sec-name">${i.name}</span>
+          <span class="sec-count">${i.count}</span>
+          <span class="sec-pct ${i.pct >= 0 ? "up" : "down"}">${i.pct >= 0 ? "+" : ""}${i.pct.toFixed(2)}%</span>
+        </button>`
+      )
+      .join("");
+  }
+
+  async function selectIndustry(node) {
+    sec.node = node;
+    renderSecList();
+    const info = sec.list.find((i) => i.node === node);
+    $("#sec-sub").textContent = `${info ? info.name : node} · 成分股加载中…`;
+    try {
+      const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50`);
+      sec.board = await res.json();
+      renderTreemap(sec.board);
+    } catch (err) {
+      $("#sec-sub").textContent = "成分股加载失败：" + err.message;
+    }
+  }
+
+  function renderTreemap(data) {
+    const members = data.members || [];
+    if (!sec.chart) sec.chart = echarts.init($("#sec-chart"));
+    if (!members.length) {
+      sec.chart.clear();
+      $("#sec-sub").textContent = `${data.name || ""} 暂无成分股数据`;
+      $("#sec-badges").innerHTML = "";
+      return;
+    }
+    const total = members.reduce((a, m) => a + (m.mktcap || 0), 0);
+    $("#sec-sub").textContent =
+      `${data.name} · 共 ${data.count} 只 · 前 ${members.length} 只合计 ${(total / 1e8).toFixed(0)} 亿`;
+    $("#sec-badges").innerHTML = [
+      `<span class="chip">行业涨跌 <b class="${data.pct >= 0 ? "up" : "down"}">${data.pct >= 0 ? "+" : ""}${data.pct}%</b></span>`,
+      data.etf
+        ? `<span class="chip">行业ETF ${data.etf.name} <b class="${data.etf.pct >= 0 ? "up" : "down"}">${data.etf.pct >= 0 ? "+" : ""}${data.etf.pct}%</b></span>`
+        : `<span class="chip muted">未匹配到行业 ETF</span>`,
+      `<span class="chip muted">点击方块可跳转行情</span>`,
+    ].join("");
+
+    sec.chart.setOption(
+      {
+        animation: false,
+        backgroundColor: "transparent",
+        tooltip: {
+          backgroundColor: "rgba(12,17,27,.96)",
+          borderColor: "rgba(255,255,255,.09)",
+          borderWidth: 1,
+          padding: [8, 11],
+          textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+          formatter: (p) => {
+            const d = p.data || {};
+            if (d.code == null) return "";
+            const pct = d.pct == null ? "—" : `${d.pct >= 0 ? "+" : ""}${d.pct.toFixed(2)}%`;
+            return `<div style="color:#8b95a9">${d.code}</div><b>${d.name}</b><br/>
+              市值 ${(d.value / 1e8).toFixed(0)} 亿<br/>
+              <span style="color:${(d.pct || 0) >= 0 ? UP : DOWN}">${pct}</span>`;
+          },
+        },
+        series: [
+          {
+            type: "treemap",
+            roam: false,
+            nodeClick: false,
+            breadcrumb: { show: false },
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: "100%",
+            height: "100%",
+            itemStyle: { borderColor: "#080c14", borderWidth: 1, gapWidth: 1 },
+            label: {
+              show: true,
+              color: "#f2f6ff",
+              fontSize: 11,
+              lineHeight: 14,
+              formatter: (p) =>
+                p.data && p.data.pct != null
+                  ? `${p.data.name}\n${p.data.pct >= 0 ? "+" : ""}${p.data.pct.toFixed(1)}%`
+                  : p.name,
+            },
+            data: members.map((m) => ({
+              name: m.name,
+              value: Math.max(m.mktcap || 0, 1),
+              pct: m.pct,
+              code: m.code,
+              itemStyle: { color: secColor(m.pct) },
+            })),
+          },
+        ],
+      },
+      true
+    );
+    sec.chart.off("click");
+    sec.chart.on("click", (params) => {
+      const d = params.data || {};
+      if (!d.code) return;
+      const tip = $("#sec-sub");
+      if (tip) tip.textContent = `${d.name}（${d.code}） · 市值 ${(d.value / 1e8).toFixed(0)} 亿 · ${d.pct >= 0 ? "+" : ""}${(d.pct || 0).toFixed(2)}%`;
+    });
   }
 
   function bindAnalysis() {
@@ -1810,6 +1979,7 @@
     try {
       const params = new URLSearchParams(location.search);
       if (params.get("view") === "analysis") switchView("analysis");
+      if (params.get("view") === "sectors") switchView("sectors");
       const modeParam = params.get("mode");
       if (modeParam === "intraday" || modeParam === "flow") {
         state.mode = modeParam;

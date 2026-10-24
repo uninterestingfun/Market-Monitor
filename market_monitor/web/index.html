@@ -26,6 +26,7 @@
 
   <nav class="view-tabs" id="view-tabs" aria-label="视图">
     <button data-view="market" class="active">行情</button>
+    <button data-view="sectors">板块</button>
     <button data-view="analysis">关联分析</button>
   </nav>
 
@@ -130,6 +131,28 @@
     </section>
 
     <div class="groups" id="groups"></div>
+  </div>
+
+  <div id="view-sectors" hidden>
+    <section class="panel sectors-panel">
+      <div class="sectors-head">
+        <div class="sectors-title">
+          <h2>行业热力图 <span class="muted">A股 · 面积 = 总市值 · 颜色 = 涨跌幅</span></h2>
+          <div class="sectors-sub" id="sec-sub">选择左侧行业</div>
+        </div>
+        <div class="sectors-actions">
+          <input id="sec-search" class="sec-search" type="search" placeholder="搜索行业…" />
+          <button id="sec-sort" class="ghost-btn" title="切换排序">按涨幅 ↓</button>
+        </div>
+      </div>
+      <div class="sectors-body">
+        <aside class="sec-list" id="sec-list"></aside>
+        <div class="sec-main">
+          <div class="sec-badges" id="sec-badges"></div>
+          <div id="sec-chart" class="sec-chart"></div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <div id="view-analysis" hidden>

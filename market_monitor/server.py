@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+from . import sectors
 from .service import MarketService
 
 
@@ -111,6 +112,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/flow/markets":
             self._json(self.service.market_flow())
+            return
+        if path == "/api/sectors":
+            self._json({"industries": sectors.industries()})
+            return
+        if path == "/api/sectors/board":
+            node = (query.get("node") or [""])[0]
+            try:
+                limit = int((query.get("limit") or ["50"])[0])
+            except ValueError:
+                limit = 50
+            self._json(sectors.board(node, max(10, min(limit, 100))))
             return
         if path == "/api/analysis":
             ids = [x for x in (query.get("ids") or [""])[0].split(",") if x]
