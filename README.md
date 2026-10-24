@@ -94,13 +94,19 @@ MarketMonitor\
 - 首次运行本地库为空，会在后台自动下载全部标的历史（约 1 分钟），期间界面可正常使用。
 - 命令行参数：`--selftest`（自检后退出）、`--no-window`（只起服务）、`--port 9000`。
 
-**自行打包**：
+**自行打包 / 发布**（三个独立脚本，互不依赖）：
+
+| 脚本 | 作用 | 产物 |
+| --- | --- | --- |
+| `tools\build.bat` | 打包 exe、便携包、安装包 | `dist\MarketMonitor\`、`dist\MarketMonitor-portable.zip`、`dist\MarketMonitor-Setup.exe` |
+| `tools\release.bat` | 把 `dist\` 产物复制到 `release\`，重算 SHA256 并更新 `release/README.md` | `release\MarketMonitor-Setup.exe` |
+| `tools\push.bat` | `git add -A` + 提交 + 推送，可带说明：`push.bat "feat: xxx"` | 远端仓库 |
+
+首次打包需要先装依赖：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\pip install requests numpy pillow pyinstaller
-powershell -ExecutionPolicy Bypass -File tools\build.ps1
-# 或直接双击 tools\build.bat
 ```
 
 产物：`dist\MarketMonitor\`（目录）、`dist\MarketMonitor-portable.zip`、`dist\MarketMonitor-Setup.exe`。
@@ -203,7 +209,9 @@ Market_monitor/
 ├─ installer/
 │  └─ Installer.cs            # 原生 C# 安装器（csc 编译，payload 内嵌）
 ├─ tools/
-│  ├─ build.ps1               # 一键打包 exe / 便携版 / 安装包
+│  ├─ build.bat / build.ps1   # 打包 exe / 便携版 / 安装包
+│  ├─ release.bat / release.ps1  # 同步 dist 到 release 并重算校验值
+│  ├─ push.bat / push.ps1     # 提交并推送到远端
 │  └─ make_icon.py
 ├─ data/                      # 源码模式的数据目录（桌面版在 %LOCALAPPDATA%）
 │  ├─ market.db               # SQLite：K 线、快照、元数据
