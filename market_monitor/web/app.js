@@ -1758,6 +1758,7 @@
   }
 
   async function selectIndustry(node) {
+    closeStock();
     sec.node = node;
     renderSecList();
     const info = sec.list.find((i) => i.node === node);
@@ -1781,8 +1782,7 @@
       return;
     }
     const total = members.reduce((a, m) => a + (m.mktcap || 0), 0);
-    $("#sec-sub").textContent =
-      `${data.name} · 共 ${data.count} 只 · 前 ${members.length} 只合计 ${(total / 1e8).toFixed(0)} 亿`;
+    $("#sec-sub").textContent = secSubText(data);
     $("#sec-badges").innerHTML = [
       `<span class="chip">行业涨跌 <b class="${data.pct >= 0 ? "up" : "down"}">${data.pct >= 0 ? "+" : ""}${data.pct}%</b></span>`,
       data.etf
@@ -1864,23 +1864,36 @@
     return stk.charts[id];
   }
 
+  function secSubText(data) {
+    if (!data) return "选择左侧行业";
+    const rows = data.members || [];
+    const total = rows.reduce((a, m) => a + (m.mktcap || 0), 0);
+    return `${data.name} · 共 ${data.count} 只 · 前 ${rows.length} 只合计 ${(total / 1e8).toFixed(0)} 亿`;
+  }
+
   function closeStock() {
-    const el = $("#stock-modal");
-    if (el) el.hidden = true;
+    const panel = $("#stk-panel");
+    const treemap = $("#sec-chart");
+    if (!panel || panel.hidden) return;
+    panel.hidden = true;
+    treemap.hidden = false;
+    $("#sec-badges").hidden = false;
+    $("#sec-sub").textContent = secSubText(sec.board);
+    if (sec.chart) setTimeout(() => sec.chart.resize(), 30);
   }
 
   async function openStock(code, name) {
-    const el = $("#stock-modal");
-    if (!el) return;
-    el.hidden = false;
+    const panel = $("#stk-panel");
+    const treemap = $("#sec-chart");
+    if (!panel) return;
+    treemap.hidden = true;
+    $("#sec-badges").hidden = true;
+    panel.hidden = false;
     if (!stk.bound) {
       stk.bound = true;
-      $("#st-close").addEventListener("click", closeStock);
-      el.addEventListener("click", (e) => {
-        if (e.target.dataset.close) closeStock();
-      });
+      $("#stk-back").addEventListener("click", closeStock);
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !el.hidden) closeStock();
+        if (e.key === "Escape" && !panel.hidden) closeStock();
       });
     }
     $("#st-name").textContent = name || code;
@@ -1888,11 +1901,12 @@
     $("#st-price").textContent = "…";
     $("#st-pct").textContent = "";
     $("#st-meta").textContent = "加载中…";
-    Object.values(stk.charts).forEach((c) => c.clear());
-    requestAnimationFrame(() => Object.values(stk.charts).forEach((c) => c.resize()));
+    $("#sec-sub").textContent = `${name || code} · ${code} · 点「返回板块」回到热力图`;
+    Object.values(stk.charts).forEach((c) => c.resize());
     try {
       const res = await fetch(`/api/stock?code=${encodeURIComponent(code)}`, { cache: "no-store" });
       renderStock(await res.json(), name);
+      requestAnimationFrame(() => Object.values(stk.charts).forEach((c) => c.resize()));
     } catch (err) {
       $("#st-meta").textContent = "加载失败：" + err.message;
     }

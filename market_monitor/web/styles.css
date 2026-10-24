@@ -870,3 +870,11 @@ footer {
   .stock-grid { grid-template-columns: 1fr 1fr; }
   .stock-block:nth-child(2) { grid-column: span 2; }
 }
+
+/* 个股内嵌视图（替换热力图区域） */
+.stk-panel { display: flex; flex-direction: column; gap: 10px; }
+.stk-panel[hidden] { display: none; }
+.stk-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.stk-head .stock-title b { font-size: 16px; }
+
+.sec-badges[hidden] { display: none; }
