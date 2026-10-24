@@ -17,3 +17,5 @@ ui-profile/
 installer/payload.zip
 
 .tmp-*/
+
+_probe_*.py
