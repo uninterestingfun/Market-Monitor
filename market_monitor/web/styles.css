@@ -851,3 +851,22 @@ footer {
 .sec-badges .chip b.down { color: var(--down); }
 .sec-chart { height: 620px; width: 100%; }
 .sec-empty { padding: 16px; color: var(--faint); font-size: 12px; }
+
+/* ───────────── 个股详情弹窗 ───────────── */
+.stock-modal { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; }
+.stock-modal[hidden] { display: none; }
+.stock-backdrop { position: absolute; inset: 0; background: rgba(4,7,12,.72); backdrop-filter: blur(2px); }
+.stock-dialog { position: relative; width: min(1120px, 94vw); max-height: 92vh; overflow: auto; background: #0b1018; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; box-shadow: 0 24px 80px rgba(0,0,0,.55); }
+.stock-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+.stock-title b { font-size: 17px; }
+.stock-title .muted { margin-left: 6px; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+.stock-quote { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); font-size: 21px; }
+.stock-quote .delta { font-size: 13px; }
+.stock-meta { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-left: auto; }
+.stock-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.stock-block h4 { margin: 0 0 4px; font-size: 11.5px; color: var(--faint); font-weight: 500; letter-spacing: .02em; }
+.stock-chart { width: 100%; }
+@media (min-width: 1180px) {
+  .stock-grid { grid-template-columns: 1fr 1fr; }
+  .stock-block:nth-child(2) { grid-column: span 2; }
+}

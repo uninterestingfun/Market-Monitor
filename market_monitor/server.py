@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import socket
 import sys
 import threading
@@ -112,6 +113,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/flow/markets":
             self._json(self.service.market_flow())
+            return
+        if path == "/api/stock":
+            code = (query.get("code") or [""])[0].strip().lower()
+            if not re.match(r"^(sh|sz|bj)\d{6}$", code):
+                self._json({"error": "invalid code"})
+                return
+            self._json(self.service.stock(code))
             return
         if path == "/api/sectors":
             self._json({"industries": sectors.industries()})

@@ -21,7 +21,8 @@ from .analysis import (
 from .config import Asset
 from .net import http
 from .providers import (
-    fetch_cnbc, fetch_em_yields, fetch_history, fetch_intraday, fetch_sina, fetch_tencent,
+    fetch_cnbc, fetch_em_yields, fetch_history, fetch_intraday, fetch_sina, fetch_stock,
+    fetch_tencent,
 )
 from .store import Store
 
@@ -153,6 +154,7 @@ class MarketService:
         self._analysis_cache: Dict[str, tuple] = {}
         self._intraday_cache: Dict[str, tuple] = {}
         self._flow_cache: Dict[str, tuple] = {}
+        self._stock_cache: Dict[str, tuple] = {}
         self.last_ping: float = 0.0
         self.download_state: Dict[str, Any] = {
             "running": False, "done": 0, "total": 0, "current": "", "errors": [],
@@ -626,6 +628,26 @@ class MarketService:
                 self.flow(asset.id, 250)
             except Exception:
                 pass
+
+    # ------------------------------------------------------------ 个股下钻
+    def stock(self, code: str) -> Dict[str, Any]:
+        """任意 A 股个股的详情：报价、日线、分时、资金流。"""
+        now = time.time()
+        cached = self._stock_cache.get(code)
+        if cached and now - cached[0] < 60:
+            return cached[1]
+        raw = fetch_stock(code)
+        hist = raw.get("hist") or []
+        payload = {
+            "code": code,
+            "name": raw.get("name") or code,
+            "quote": raw.get("quote") or {},
+            "hist": hist[-250:],
+            "intraday": raw.get("intraday") or {},
+            "flow": money_flow(hist[-250:]),
+        }
+        self._stock_cache[code] = (now, payload)
+        return payload
 
     # ------------------------------------------------------------ 关联分析
     ANALYSIS_POINTS = {"1Y": 250, "2Y": 500, "3Y": 750, "ALL": 0}

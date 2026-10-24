@@ -746,6 +746,30 @@ def fetch_intraday(asset: Asset) -> Optional[Dict[str, Any]]:
     return None
 
 
+def fetch_stock(code: str) -> Dict[str, Any]:
+    """任意 A 股个股：实时报价 + 日线 + 当日分时（用于板块热力图下钻）。"""
+    asset = Asset(id=code, name=code, group="A股", kind="stock", sina=code, tencent=code)
+    quote: Dict[str, Any] = {}
+    try:
+        quote = (fetch_sina([asset]) or {}).get(code, {}) or {}
+    except Exception:
+        quote = {}
+    hist = _tencent_kline(code, "day", 260)
+    if not hist:
+        try:
+            hist = _sina_cn_kline(code, 260)
+        except Exception:
+            hist = []
+    intra = _tencent_minute(code) or {}
+    return {
+        "code": code,
+        "name": quote.get("name") or code,
+        "quote": quote,
+        "hist": hist,
+        "intraday": intra,
+    }
+
+
 def probe_asset(asset: Asset) -> Dict[str, Any]:
     """自检：抓一次实时与历史，返回结果摘要。"""
     out: Dict[str, Any] = {"id": asset.id, "name": asset.name}

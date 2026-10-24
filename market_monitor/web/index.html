@@ -242,6 +242,32 @@
   </div>
 </main>
 
+<div class="stock-modal" id="stock-modal" hidden>
+  <div class="stock-backdrop" data-close="1"></div>
+  <div class="stock-dialog" role="dialog" aria-modal="true" aria-label="个股详情">
+    <header class="stock-head">
+      <div class="stock-title"><b id="st-name">—</b><span id="st-code" class="muted"></span></div>
+      <div class="stock-quote"><span id="st-price">—</span><span id="st-pct" class="delta">—</span></div>
+      <div class="stock-meta" id="st-meta"></div>
+      <button class="ghost-btn" id="st-close">关闭</button>
+    </header>
+    <div class="stock-grid">
+      <section class="stock-block">
+        <h4>当日分时</h4>
+        <div id="st-intraday" class="stock-chart" style="height:200px"></div>
+      </section>
+      <section class="stock-block">
+        <h4>历史股价 · 日线 + 成交量</h4>
+        <div id="st-kline" class="stock-chart" style="height:280px"></div>
+      </section>
+      <section class="stock-block">
+        <h4>资金流（估算）</h4>
+        <div id="st-flow" class="stock-chart" style="height:200px"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <footer>
   <span>数据来源：新浪财经 · 腾讯行情 · CNBC · 东方财富 · 美国财政部 · 欧洲央行汇率</span>
   <span>本工具仅供研究参考，不构成投资建议</span>

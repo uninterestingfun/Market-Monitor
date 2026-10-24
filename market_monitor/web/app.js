@@ -1849,9 +1849,222 @@
     sec.chart.on("click", (params) => {
       const d = params.data || {};
       if (!d.code) return;
-      const tip = $("#sec-sub");
-      if (tip) tip.textContent = `${d.name}（${d.code}） · 市值 ${(d.value / 1e8).toFixed(0)} 亿 · ${d.pct >= 0 ? "+" : ""}${(d.pct || 0).toFixed(2)}%`;
+      openStock(String(d.code).toLowerCase(), d.name);
     });
+  }
+
+  /* ─────────────────────────── 个股详情弹窗 ─────────────────────────── */
+  const stk = { charts: {}, bound: false };
+
+  function stkChart(id) {
+    if (!stk.charts[id]) {
+      const el = $("#" + id);
+      if (el) stk.charts[id] = echarts.init(el);
+    }
+    return stk.charts[id];
+  }
+
+  function closeStock() {
+    const el = $("#stock-modal");
+    if (el) el.hidden = true;
+  }
+
+  async function openStock(code, name) {
+    const el = $("#stock-modal");
+    if (!el) return;
+    el.hidden = false;
+    if (!stk.bound) {
+      stk.bound = true;
+      $("#st-close").addEventListener("click", closeStock);
+      el.addEventListener("click", (e) => {
+        if (e.target.dataset.close) closeStock();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !el.hidden) closeStock();
+      });
+    }
+    $("#st-name").textContent = name || code;
+    $("#st-code").textContent = code;
+    $("#st-price").textContent = "…";
+    $("#st-pct").textContent = "";
+    $("#st-meta").textContent = "加载中…";
+    Object.values(stk.charts).forEach((c) => c.clear());
+    requestAnimationFrame(() => Object.values(stk.charts).forEach((c) => c.resize()));
+    try {
+      const res = await fetch(`/api/stock?code=${encodeURIComponent(code)}`, { cache: "no-store" });
+      renderStock(await res.json(), name);
+    } catch (err) {
+      $("#st-meta").textContent = "加载失败：" + err.message;
+    }
+  }
+
+  const STK_AXIS = {
+    axisLine: { lineStyle: { color: "rgba(255,255,255,.10)" } },
+    axisTick: { show: false },
+    axisLabel: { color: "#5d6679", fontSize: 9.5, fontFamily: "JetBrains Mono, Consolas, monospace", hideOverlap: true },
+    splitLine: { show: false },
+  };
+
+  function renderStock(data, fallbackName) {
+    const q = data.quote || {};
+    const price = q.price;
+    const prev = q.prev_close;
+    const pct = q.pct != null ? q.pct : price != null && prev ? (price / prev - 1) * 100 : null;
+    $("#st-name").textContent = data.name && data.name !== data.code ? data.name : fallbackName || data.code;
+    $("#st-code").textContent = data.code;
+    $("#st-price").textContent = num(price, 2);
+    const pctEl = $("#st-pct");
+    pctEl.textContent = pct == null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+    pctEl.style.color = pct == null ? "" : pct >= 0 ? UP : DOWN;
+    $("#st-meta").textContent =
+      `开 ${num(q.open, 2)} · 高 ${num(q.high, 2)} · 低 ${num(q.low, 2)} · 昨收 ${num(prev, 2)}` +
+      (q.volume ? ` · 量 ${fmtVol(q.volume)}` : "") +
+      (q.amount ? ` · 额 ${fmtVol(q.amount)}` : "");
+
+    renderStockIntraday(data, prev);
+    renderStockKline(data);
+    renderStockFlow(data);
+  }
+
+  function renderStockIntraday(data, prev) {
+    const chart = stkChart("st-intraday");
+    if (!chart) return;
+    const pts = (data.intraday && data.intraday.points) || [];
+    if (!pts.length) {
+      chart.clear();
+      chart.setOption({
+        title: { text: "暂无分时数据", left: "center", top: "middle", textStyle: { color: "#5d6679", fontSize: 12, fontWeight: "normal" } },
+      }, true);
+      return;
+    }
+    const times = pts.map((p) => p[0]);
+    const prices = pts.map((p) => p[1]);
+    const vols = pts.map((p) => p[2]);
+    const up = prices[prices.length - 1] >= (prev || prices[0]);
+    const color = up ? UP : DOWN;
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: [{ left: 8, right: 54, top: 12, height: "62%" }, { left: 8, right: 54, top: "76%", height: "16%" }],
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(12,17,27,.96)",
+        borderColor: "rgba(255,255,255,.09)",
+        textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+      },
+      xAxis: [
+        { type: "category", data: times, boundaryGap: false, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, interval: Math.max(1, Math.floor(times.length / 6)) } },
+        { type: "category", gridIndex: 1, data: times, boundaryGap: true, ...STK_AXIS, axisLabel: { show: false } },
+      ],
+      yAxis: [
+        { type: "value", position: "right", scale: true, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => Number(v).toFixed(2) } },
+        { type: "value", gridIndex: 1, scale: true, position: "right", splitNumber: 2, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => fmtVol(v) } },
+      ],
+      series: [
+        {
+          type: "line", data: prices, showSymbol: false,
+          lineStyle: { width: 1.6, color }, itemStyle: { color },
+          areaStyle: { color: up ? "rgba(255,84,104,.18)" : "rgba(25,196,138,.18)" },
+          markLine: prev == null ? undefined : {
+            silent: true, symbol: "none", label: { show: false },
+            lineStyle: { color: "rgba(255,255,255,.2)", type: "dashed" },
+            data: [{ yAxis: prev }],
+          },
+        },
+        { type: "bar", xAxisIndex: 1, yAxisIndex: 1, data: vols, itemStyle: { color: up ? "rgba(255,84,104,.45)" : "rgba(25,196,138,.45)" } },
+      ],
+    }, true);
+  }
+
+  function renderStockKline(data) {
+    const chart = stkChart("st-kline");
+    if (!chart) return;
+    const bars = data.hist || [];
+    if (!bars.length) {
+      chart.clear();
+      return;
+    }
+    const dates = bars.map((b) => b[0]);
+    const ohlc = bars.map((b) => [b[1], b[4], b[3], b[2]]); // open, close, low, high
+    const vols = bars.map((b) => b[5]);
+    const ma20 = bars.map((_, i) => {
+      const part = bars.slice(Math.max(0, i - 19), i + 1);
+      return part.reduce((a, b) => a + b[4], 0) / part.length;
+    });
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: [{ left: 8, right: 54, top: 12, height: "64%" }, { left: 8, right: 54, top: "78%", height: "14%" }],
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(12,17,27,.96)",
+        borderColor: "rgba(255,255,255,.09)",
+        textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+        formatter: (ps) => {
+          const p = ps.find((x) => x.seriesType === "candlestick") || ps[0];
+          if (!p) return "";
+          const b = bars[p.dataIndex];
+          return `<div style="color:#8b95a9;margin-bottom:3px">${b[0]}</div>
+            开 ${num(b[1], 2)}　收 ${num(b[4], 2)}<br/>高 ${num(b[2], 2)}　低 ${num(b[3], 2)}<br/>量 ${fmtVol(b[5])}`;
+        },
+      },
+      xAxis: [
+        { type: "category", data: dates, ...STK_AXIS },
+        { type: "category", gridIndex: 1, data: dates, ...STK_AXIS, axisLabel: { show: false } },
+      ],
+      yAxis: [
+        { scale: true, position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => Number(v).toFixed(2) } },
+        { gridIndex: 1, scale: true, position: "right", splitNumber: 2, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => fmtVol(v) } },
+      ],
+      dataZoom: [{ type: "inside", start: 55, end: 100 }],
+      series: [
+        {
+          type: "candlestick", data: ohlc,
+          itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
+        },
+        { type: "line", data: ma20, showSymbol: false, lineStyle: { width: 1, color: "#7dd3fc" }, itemStyle: { color: "#7dd3fc" } },
+        { type: "bar", xAxisIndex: 1, yAxisIndex: 1, data: vols, itemStyle: { color: "rgba(140,160,190,.45)" } },
+      ],
+    }, true);
+  }
+
+  function renderStockFlow(data) {
+    const chart = stkChart("st-flow");
+    if (!chart) return;
+    const rows = data.flow || [];
+    if (!rows.length) {
+      chart.clear();
+      return;
+    }
+    const dates = rows.map((r) => r[0]);
+    const net = rows.map((r) => r[3]);
+    let acc = 0;
+    const cum = net.map((v) => (acc += v));
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: { left: 8, right: 54, top: 12, bottom: 26 },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "rgba(12,17,27,.96)",
+        borderColor: "rgba(255,255,255,.09)",
+        textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+      },
+      xAxis: [{ type: "category", data: dates, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.slice(5), interval: Math.max(1, Math.floor(dates.length / 7)) } }],
+      yAxis: [
+        { type: "value", min: -100, max: 100, position: "right", ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v + "%" } },
+        { type: "value", position: "left", scale: true, ...STK_AXIS, axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v.toFixed(0) } },
+      ],
+      series: [
+        {
+          type: "bar",
+          data: net.map((v) => ({ value: v, itemStyle: { color: v >= 0 ? "rgba(255,84,104,.7)" : "rgba(25,196,138,.7)" } })),
+          barMaxWidth: 6,
+        },
+        { type: "line", data: cum, yAxisIndex: 1, showSymbol: false, lineStyle: { width: 1.5, color: "#5eead4" }, itemStyle: { color: "#5eead4" } },
+      ],
+    }, true);
   }
 
   function bindAnalysis() {
