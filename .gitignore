@@ -19,3 +19,5 @@ installer/payload.zip
 .tmp-*/
 
 _probe_*.py
+
+release/MarketMonitor-portable.zip

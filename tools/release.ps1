@@ -1,4 +1,9 @@
 ﻿# 把 dist\ 里的产物同步到 release\ 并更新校验值（不提交、不推送）
+# 默认只同步安装包；加 -WithPortable 同时同步便携包
+param(
+    [switch]$WithPortable
+)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -12,9 +17,12 @@ if (-not (Test-Path $setup)) {
 New-Item -ItemType Directory -Force -Path "release" | Out-Null
 Copy-Item $setup "release\MarketMonitor-Setup.exe" -Force
 
-$portable = "dist\MarketMonitor-portable.zip"
-if (Test-Path $portable) {
-    Copy-Item $portable "release\MarketMonitor-portable.zip" -Force
+if ($WithPortable) {
+    $portable = "dist\MarketMonitor-portable.zip"
+    if (Test-Path $portable) {
+        Copy-Item $portable "release\MarketMonitor-portable.zip" -Force
+        Write-Host "[release] 已同步便携包" -ForegroundColor Cyan
+    }
 }
 
 $file = Get-Item "release\MarketMonitor-Setup.exe"
@@ -40,5 +48,8 @@ Write-Host ""
 Write-Host "[release] 已同步" -ForegroundColor Green
 Write-Host "  文件: release\MarketMonitor-Setup.exe ($size MB)"
 Write-Host "  SHA256: $hash"
+if (-not $WithPortable) {
+    Write-Host "  提示: 便携包未同步，如需请运行 release.bat -WithPortable" -ForegroundColor DarkGray
+}
 Write-Host ""
 Write-Host "下一步: 运行 push.bat 提交并推送到远端"
