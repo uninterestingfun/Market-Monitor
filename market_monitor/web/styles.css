@@ -835,7 +835,7 @@ footer {
 .sec-search { width: 170px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--text); font-size: 12px; outline: none; }
 .sec-search:focus { border-color: rgba(94,234,212,.4); }
 .sectors-body { display: grid; grid-template-columns: 246px minmax(0, 1fr); gap: 14px; }
-.sec-list { max-height: 640px; overflow: auto; border-right: 1px solid var(--line-soft); padding-right: 8px; }
+.sec-list { max-height: 620px; overflow-y: auto; overflow-x: hidden; border-right: 1px solid var(--line-soft); padding-right: 8px; }
 .sec-item { display: grid; grid-template-columns: minmax(0,1fr) 30px 62px; align-items: center; gap: 6px; width: 100%; padding: 7px 8px; border-radius: 8px; background: transparent; border: 0; color: var(--text); font-size: 12px; cursor: pointer; text-align: left; }
 .sec-item:hover { background: var(--panel-hover); }
 .sec-item.active { background: rgba(94,234,212,.10); }
@@ -895,7 +895,7 @@ footer {
 
 /* 市场切换分段控件 */
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { height: 26px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.seg button { height: 26px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-size: 11.5px; cursor: pointer; white-space: nowrap; }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button:hover { color: var(--text); }
 .seg button.active { background: rgba(94,234,212,.12); color: var(--accent); }
@@ -906,3 +906,11 @@ footer {
 @media (max-width: 1100px) { .bonds-grid { grid-template-columns: 1fr; } }
 .bonds-block h4 { margin: 0 0 4px; font-size: 11.5px; color: var(--faint); font-weight: 500; }
 .bonds-chart { height: 300px; width: 100%; }
+
+/* 深色细滚动条（全局） */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.30); }
+::-webkit-scrollbar-corner { background: transparent; }

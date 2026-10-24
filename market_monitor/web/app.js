@@ -360,6 +360,7 @@
     window.addEventListener("resize", () => {
       state.chart && state.chart.resize();
       mf.chart && mf.chart.resize();
+      syncSecListHeight();
     });
     // 容器尺寸变化（窗口缩放、侧栏折叠）时保持图表自适应
     if (typeof ResizeObserver !== "undefined") {
@@ -1895,6 +1896,18 @@
     return `${data.name} · 共 ${data.count} 只 · 前 ${rows.length} 只合计 ${secCapText(total)}`;
   }
 
+
+  /* 左侧行业列表高度与右侧内容（热力图 / 个股面板）对齐 */
+  function syncSecListHeight() {
+    const list = $("#sec-list");
+    if (!list) return;
+    const panel = $("#stk-panel");
+    const treemap = $("#sec-chart");
+    const open = panel && !panel.hidden;
+    const target = open ? panel.offsetHeight : (treemap && treemap.offsetHeight) || 620;
+    list.style.maxHeight = Math.max(320, target) + "px";
+  }
+
   function closeStock() {
     const panel = $("#stk-panel");
     const treemap = $("#sec-chart");
@@ -1903,6 +1916,7 @@
     treemap.hidden = false;
     $("#sec-badges").hidden = false;
     $("#sec-sub").textContent = secSubText(sec.board);
+    syncSecListHeight();
     if (sec.chart) setTimeout(() => sec.chart.resize(), 30);
   }
 
@@ -1930,7 +1944,10 @@
     try {
       const res = await fetch(`/api/stock?code=${encodeURIComponent(code)}`, { cache: "no-store" });
       renderStock(await res.json(), name);
-      requestAnimationFrame(() => Object.values(stk.charts).forEach((c) => c.resize()));
+      requestAnimationFrame(() => {
+        Object.values(stk.charts).forEach((c) => c.resize());
+        syncSecListHeight();
+      });
     } catch (err) {
       $("#st-meta").textContent = "加载失败：" + err.message;
     }
