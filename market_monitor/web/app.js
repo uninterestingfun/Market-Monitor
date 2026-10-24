@@ -1701,6 +1701,12 @@
     }
     if (!sec.bound) {
       sec.bound = true;
+      $("#sec-list").addEventListener("click", (e) => {
+        const item = e.target.closest(".sec-item");
+        if (item && item.dataset.node && item.dataset.node !== sec.node) {
+          selectIndustry(item.dataset.node);
+        }
+      });
       $("#sec-search").addEventListener("input", (e) => {
         sec.keyword = e.target.value.trim();
         renderSecList();
