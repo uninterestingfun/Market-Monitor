@@ -27,6 +27,7 @@
   <nav class="view-tabs" id="view-tabs" aria-label="视图">
     <button data-view="market" class="active">行情</button>
     <button data-view="sectors">板块</button>
+    <button data-view="macro">宏观</button>
     <button data-view="analysis">关联分析</button>
   </nav>
 
@@ -174,6 +175,24 @@
           </div>
 
         </div>
+      </div>
+    </section>
+  </div>
+
+
+  <div id="view-macro" hidden>
+    <section class="panel macro-panel">
+      <div class="sectors-head">
+        <div class="sectors-title">
+          <h2>全球宏观 <span class="muted">前 20 大经济体 · 世界银行年度数据</span></h2>
+          <div class="sectors-sub" id="macro-sub">加载中…</div>
+        </div>
+        <div class="sectors-actions">
+          <button id="macro-refresh" class="btn ghost small">刷新</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="macro-table" id="macro-table"></table>
       </div>
     </section>
   </div>

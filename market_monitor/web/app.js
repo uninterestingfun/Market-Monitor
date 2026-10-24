@@ -1654,6 +1654,7 @@
     });
     $("#view-market").hidden = name !== "market";
     $("#view-sectors").hidden = name !== "sectors";
+    $("#view-macro").hidden = name !== "macro";
     $("#view-analysis").hidden = name !== "analysis";
     try {
       const url = new URL(location.href);
@@ -1666,6 +1667,8 @@
     if (name === "sectors") {
       initSectors();
       setTimeout(() => sec.chart && sec.chart.resize(), 60);
+    } else if (name === "macro") {
+      initMacro();
     } else if (name === "analysis") {
       initAnalysis();
       if (!an.chart) an.chart = echarts.init($("#an-chart"));
@@ -2106,6 +2109,98 @@
     }, true);
   }
 
+
+  /* ─────────────────────────── 全球宏观 ─────────────────────────── */
+  const mac = { data: null, sortKey: "gdp", sortAsc: false, loading: false, bound: false };
+
+  const fmtTrl = (v) => (v == null ? "—" : (v / 1e12).toFixed(2) + " 万亿");
+  const fmtPct1 = (v) => (v == null ? "—" : v.toFixed(1) + "%");
+  const fmtUsd = (v) => (v == null ? "—" : "$" + Math.round(v).toLocaleString("en-US"));
+  const fmtPop = (v) => (v == null ? "—" : (v / 1e8).toFixed(2) + " 亿");
+
+  function initMacro() {
+    if (!mac.bound) {
+      mac.bound = true;
+      $("#macro-refresh").addEventListener("click", () => loadMacro(true));
+      $("#macro-table").addEventListener("click", (e) => {
+        const th = e.target.closest("th[data-key]");
+        if (!th) return;
+        const key = th.dataset.key;
+        mac.sortAsc = mac.sortKey === key ? !mac.sortAsc : false;
+        mac.sortKey = key;
+        renderMacro();
+      });
+    }
+    if (!mac.data) loadMacro();
+  }
+
+  async function loadMacro(force) {
+    if (mac.loading) return;
+    mac.loading = true;
+    $("#macro-sub").textContent = "宏观数据加载中（世界银行年度数据，首次约 3~8 秒）…";
+    try {
+      const res = await fetch("/api/macro" + (force ? "?refresh=1" : ""), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      mac.data = await res.json();
+      renderMacro();
+    } catch (err) {
+      $("#macro-sub").textContent = "加载失败：" + err.message;
+    } finally {
+      mac.loading = false;
+    }
+  }
+
+  function renderMacro() {
+    const d = mac.data;
+    if (!d || !d.rows) return;
+    const rows = [...d.rows];
+    const key = mac.sortKey;
+    rows.sort((a, b) => {
+      const av = a[key], bv = b[key];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return mac.sortAsc ? av - bv : bv - av;
+    });
+    const arrow = (k) => (mac.sortKey === k ? (mac.sortAsc ? " ↑" : " ↓") : "");
+    const cols = [
+      ["gdp", "GDP", "万亿"],
+      ["gdp_yoy", "GDP 同比", "%"],
+      ["gni", "GNI", "万亿"],
+      ["gdp_pc", "人均 GDP", "美元"],
+      ["unemployment", "失业率", "%"],
+      ["debt", "政府债务/GDP", "%"],
+      ["m2", "广义货币/GDP", "%"],
+      ["cpi", "CPI 同比", "%"],
+      ["rate", "政策利率", "%"],
+    ];
+    const head = `<thead><tr><th>#</th><th>经济体</th>${cols
+      .map(([k, label]) => `<th data-key="${k}">${label}${arrow(k)}</th>`)
+      .join("")}<th>数据年</th></tr></thead>`;
+    const body = rows
+      .map((r, i) => {
+        const yoyClass = (r.gdp_yoy || 0) >= 0 ? "up" : "down";
+        return `<tr>
+          <td class="idx">${i + 1}</td>
+          <td class="name">${r.name}</td>
+          <td>${fmtTrl(r.gdp)}</td>
+          <td class="${yoyClass}">${fmtPct1(r.gdp_yoy)}</td>
+          <td>${fmtTrl(r.gni)}</td>
+          <td>${fmtUsd(r.gdp_pc)}</td>
+          <td>${fmtPct1(r.unemployment)}</td>
+          <td>${fmtPct1(r.debt)}</td>
+          <td>${fmtPct1(r.m2)}</td>
+          <td class="${(r.cpi || 0) >= 0 ? "up" : "down"}">${fmtPct1(r.cpi)}</td>
+          <td>${r.rate == null ? "—" : r.rate.toFixed(2) + "%"}</td>
+          <td class="idx">${(r.years && r.years.gdp) || "—"}</td>
+        </tr>`;
+      })
+      .join("");
+    $("#macro-table").innerHTML = head + `<tbody>${body}</tbody>`;
+    $("#macro-sub").textContent =
+      `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· ${d.source}`;
+  }
+
   function bindAnalysis() {
     document.querySelectorAll("#view-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2238,6 +2333,7 @@
       const params = new URLSearchParams(location.search);
       if (params.get("view") === "analysis") switchView("analysis");
       if (params.get("view") === "sectors") switchView("sectors");
+      if (params.get("view") === "macro") switchView("macro");
       const modeParam = params.get("mode");
       if (modeParam === "intraday" || modeParam === "flow") {
         state.mode = modeParam;

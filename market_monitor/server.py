@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import sectors
+from . import macro, sectors
 from .service import MarketService
 
 
@@ -113,6 +113,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/flow/markets":
             self._json(self.service.market_flow())
+            return
+        if path == "/api/macro":
+            force = (query.get("refresh") or [""])[0] == "1"
+            self._json(macro.snapshot(force=force))
             return
         if path == "/api/stock":
             code = (query.get("code") or [""])[0].strip().lower()
