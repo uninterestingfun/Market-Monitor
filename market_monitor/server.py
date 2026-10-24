@@ -146,7 +146,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(sectors.board(node, limit))
             return
         if path == "/api/bonds":
-            self._json(bonds.snapshot(self.service.quote_map()))
+            self._json(bonds.snapshot(self.service.quote_map(), self.service.last_close))
             return
         if path == "/api/analysis":
             ids = [x for x in (query.get("ids") or [""])[0].split(",") if x]

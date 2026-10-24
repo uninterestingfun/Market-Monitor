@@ -563,6 +563,23 @@ class MarketService:
         self._intraday_cache[asset_id] = (now, payload)
         return payload
 
+    def last_close(self, asset_id: str) -> Optional[float]:
+        """优先实时报价，缺失时回落到本地日线最后一根收盘价。"""
+        with self._lock:
+            q = self.quotes.get(asset_id) or {}
+        if q.get("price") is not None:
+            try:
+                return float(q["price"])
+            except (TypeError, ValueError):
+                pass
+        bars = self.store.get_bars(asset_id, "day")
+        if bars:
+            try:
+                return float(bars[-1][4])
+            except (TypeError, ValueError, IndexError):
+                return None
+        return None
+
     def quote_map(self) -> Dict[str, Dict[str, Any]]:
         with self._lock:
             return {k: dict(v) for k, v in self.quotes.items()}

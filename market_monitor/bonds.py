@@ -87,24 +87,39 @@ def us_issuance(months: int = 12) -> Dict[str, Any]:
     return payload
 
 
-def yield_curve(quotes: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """用现有资产的中/美债收益率拼曲线（quotes 来自 service）。"""
-    terms = [("2Y", "2Y"), ("5Y", "5Y"), ("10Y", "10Y"), ("30Y", "30Y")]
+def yield_curve(quotes: Dict[str, Dict[str, Any]], fallback=None) -> Dict[str, Any]:
+    """用现有资产的中/美债收益率拼曲线。
+
+    quotes 缺失（实时源不可用）时，用 fallback(asset_id) 取本地日线收盘兜底，
+    保证曲线不会整条消失。
+    """
+    terms = ["2Y", "5Y", "10Y", "30Y"]
     curves: Dict[str, List[Dict[str, Any]]] = {}
+    sources: Dict[str, str] = {}
     for market, prefix in (("CN", "bond.CN"), ("US", "bond.US")):
         points = []
-        for term, label in terms:
-            q = quotes.get(f"{prefix}{term}") or {}
-            if q.get("price") is not None:
-                points.append({"term": label, "value": round(float(q["price"]), 4)})
+        live = 0
+        for term in terms:
+            aid = f"{prefix}{term}"
+            q = quotes.get(aid) or {}
+            value = q.get("price")
+            if value is not None:
+                live += 1
+            elif fallback is not None:
+                value = fallback(aid)
+            if value is not None:
+                points.append({"term": term, "value": round(float(value), 4)})
         if points:
             curves[market] = points
-    return curves
+            sources[market] = "实时" if live == len(points) else f"实时 {live} + 本地 {len(points) - live}"
+    return {"curves": curves, "sources": sources}
 
 
-def snapshot(quotes: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def snapshot(quotes: Dict[str, Dict[str, Any]], fallback=None) -> Dict[str, Any]:
+    curve = yield_curve(quotes, fallback)
     return {
-        "curves": yield_curve(quotes),
+        "curves": curve["curves"],
+        "sources": curve["sources"],
         "issuance": us_issuance(),
         "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }

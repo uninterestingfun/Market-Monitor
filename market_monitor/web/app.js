@@ -2340,14 +2340,20 @@
     }
 
     const parts = [];
+    const src = d.sources || {};
     if (curves.CN && curves.CN.length) {
       const c = curves.CN.find((p) => p.term === "10Y");
       if (c) parts.push(`中债 10Y ${c.value.toFixed(3)}%`);
+    } else {
+      parts.push("中债收益率暂缺");
     }
     if (curves.US && curves.US.length) {
       const c = curves.US.find((p) => p.term === "10Y");
       if (c) parts.push(`美债 10Y ${c.value.toFixed(3)}%`);
+    } else {
+      parts.push("⚠ 美债收益率暂缺（实时源不可用且无本地数据）");
     }
+    parts.push(`数据: 中债 ${src.CN || "—"} / 美债 ${src.US || "—"}`);
     parts.push(`更新于 ${d.updated_at || "—"}`);
     parts.push("中债发行量暂无稳定免费源");
     $("#bonds-sub").textContent = parts.join(" · ");
