@@ -1,19 +1,18 @@
 @echo off
-chcp 65001 >nul
 setlocal
 cd /d "%~dp0.."
 
 echo ============================================================
-echo   更新 release 目录（复制 dist 产物 + 重算 SHA256）
-echo   用法: release.bat            只同步安装包
-echo         release.bat -WithPortable  同时同步便携包
+echo   Update release folder (copy dist + recompute SHA256)
+echo   Usage: release.bat                setup only
+echo          release.bat -WithPortable  setup + portable zip
 echo ============================================================
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "tools\release.ps1" %*
 if errorlevel 1 (
     echo.
-    echo [失败] release 更新失败，请查看上面的日志
+    echo [FAILED] release update failed, see the log above
     pause
     exit /b 1
 )
