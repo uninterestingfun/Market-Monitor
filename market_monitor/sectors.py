@@ -81,6 +81,115 @@ ETF_ALIASES: Dict[str, List[str]] = {
 }
 
 
+
+# ────────────────────────────── 金融细分 ──────────────────────────────
+FIN_NODE = "new_jrhy"
+FIN_GROUPS = [
+    ("fin.bank", "银行"),
+    ("fin.broker", "证券"),
+    ("fin.insurance", "保险"),
+    ("fin.other", "多元金融"),
+]
+
+# 名称里带行情前缀（除权除息标记）时先剥掉
+_PREFIX_RE = __import__("re").compile(r"^(XD|XR|DR|N|C)")
+
+# 少量名称里看不出行业的个股，单独归类
+_NAME_OVERRIDE = {
+    "申万宏源": "fin.broker",
+    "太平洋": "fin.broker",
+    "锦龙股份": "fin.broker",
+    "湘财股份": "fin.broker",
+    "哈投股份": "fin.broker",
+    "中国平安": "fin.insurance",
+    "中国人寿": "fin.insurance",
+    "中国人保": "fin.insurance",
+    "中国太保": "fin.insurance",
+    "新华保险": "fin.insurance",
+    "天茂集团": "fin.insurance",
+    "渤海租赁": "fin.other",
+    "中航产融": "fin.other",
+    "中油资本": "fin.other",
+    "五矿资本": "fin.other",
+    "建元信托": "fin.other",
+    "陕国投Ａ": "fin.other",
+    "陕国投A": "fin.other",
+    "爱建集团": "fin.other",
+    "香溢融通": "fin.other",
+    "退市西水": "fin.other",
+}
+
+
+def _classify(name: str) -> str:
+    clean = _PREFIX_RE.sub("", name or "")
+    if clean in _NAME_OVERRIDE:
+        return _NAME_OVERRIDE[clean]
+    if "银行" in clean:
+        return "fin.bank"
+    if "证券" in clean or "券商" in clean:
+        return "fin.broker"
+    if any(k in clean for k in ("保险", "人寿", "人保", "太保")):
+        return "fin.insurance"
+    # 新浪会把长名称截断（如 XD中国太 -> 中国太保、XD华泰证 -> 华泰证券）
+    if clean.startswith("中国太"):
+        return "fin.insurance"
+    if clean.endswith("证"):
+        return "fin.broker"
+    if any(k in clean for k in ("信托", "租赁", "期货", "基金", "资管", "金控")):
+        return "fin.other"
+    return "fin.other"
+
+
+def finance_groups() -> Dict[str, Dict[str, Any]]:
+    """把新浪「金融行业」按银行/证券/保险/多元金融拆分。"""
+    cached = _get("fin_groups", 600)
+    if cached is not None:
+        return cached
+
+    rows = []
+    for page in (1, 2, 3):
+        try:
+            batch = http.get_json(
+                NODE_URL,
+                params={"page": page, "num": 100, "sort": "mktcap", "asc": 0, "node": FIN_NODE},
+                headers=SINA_HEADERS, timeout=20, min_interval=0.2,
+            ) or []
+        except Exception:
+            break
+        if not batch:
+            break
+        for r in batch:
+            cap = _f(r.get("mktcap"))
+            rows.append({
+                "code": r.get("symbol") or r.get("code"),
+                "name": r.get("name"),
+                "price": _f(r.get("trade")),
+                "pct": _f(r.get("changepercent")),
+                "mktcap": round((cap or 0.0) * 1e4, 2),
+                "group": _classify(r.get("name") or ""),
+            })
+        if len(batch) < 100:
+            break
+
+    groups: Dict[str, Dict[str, Any]] = {}
+    for node, name in FIN_GROUPS:
+        members = [r for r in rows if r["group"] == node]
+        members.sort(key=lambda r: r["mktcap"], reverse=True)
+        cap = sum(m["mktcap"] for m in members)
+        pct = (sum((m["pct"] or 0) * m["mktcap"] for m in members) / cap) if cap else 0.0
+        groups[node] = {
+            "node": node,
+            "name": name,
+            "count": len(members),
+            "pct": round(pct, 2),
+            "members": [{k: m[k] for k in ("code", "name", "price", "pct", "mktcap")} for m in members],
+            "total_cap": round(cap, 2),
+            "virtual": True,
+        }
+    _put("fin_groups", groups)
+    return groups
+
+
 def industries() -> List[Dict[str, Any]]:
     """新浪行业板块列表（49 个），按涨跌幅降序。"""
     cached = _get("industries", 600)
@@ -101,6 +210,21 @@ def industries() -> List[Dict[str, Any]]:
             "pct": round(_f(parts[5]) or 0.0, 2),
             "lead": parts[12] if len(parts) > 12 else "",
         })
+    # 把笼统的「金融行业」补上四个细分板块
+    try:
+        fins = finance_groups()
+        extra = []
+        for node, name in FIN_GROUPS:
+            g = fins.get(node) or {}
+            if not g.get("count"):
+                continue
+            extra.append({"node": node, "name": f"金融·{name}", "count": g["count"],
+                          "pct": g["pct"], "lead": "", "virtual": True})
+        if extra:
+            items = [i for i in items if i["node"] != FIN_NODE] + extra
+    except Exception:
+        pass
+
     items.sort(key=lambda x: x["pct"], reverse=True)
     _put("industries", items)
     return items
@@ -186,6 +310,19 @@ def match_etf(industry: str) -> Optional[Dict[str, Any]]:
 
 def board(node: str, limit: int = 50) -> Dict[str, Any]:
     """行业详情：名称、涨跌幅、成分股、对应 ETF。"""
+    if node.startswith("fin."):
+        g = (finance_groups() or {}).get(node) or {}
+        if not g:
+            return {"node": node, "members": [], "error": "unknown industry"}
+        return {
+            "node": node,
+            "name": g["name"],
+            "count": g["count"],
+            "pct": g["pct"],
+            "members": g["members"][:limit],
+            "etf": match_etf(g["name"]),
+            "total_cap": g["total_cap"],
+        }
     info = next((i for i in industries() if i["node"] == node), None)
     if not info:
         return {"node": node, "members": [], "error": "unknown industry"}
