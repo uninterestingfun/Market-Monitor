@@ -1761,7 +1761,7 @@
     const sbtns = document.querySelectorAll("#sec-scheme button");
     sbtns.forEach((b) => b.classList.toggle("active", b.dataset.scheme === sec.scheme));
     const dbtnInit = $("#sec-detail");
-    if (dbtnInit) dbtnInit.hidden = sec.scheme !== "gbt";
+    if (dbtnInit) dbtnInit.hidden = sec.scheme !== "csi";
     const dbtn = $("#sec-detail");
     if (dbtn) {
       dbtn.classList.toggle("active", sec.detail);
@@ -1784,7 +1784,7 @@
         }
         $("#sec-scheme").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
         const dbtn = $("#sec-detail");
-        if (dbtn) dbtn.hidden = sec.scheme !== "gbt";
+        if (dbtn) dbtn.hidden = sec.scheme !== "csi";
         sec.list = [];
         sec.tree = [];
         sec.node = "";
@@ -1867,7 +1867,7 @@
       const qs = new URLSearchParams({ market: sec.market });
       if (sec.market === "cn") {
         qs.set("scheme", sec.scheme);
-        if (sec.scheme === "gbt" && sec.detail) qs.set("detail", "1");
+        if (sec.scheme === "csi" && sec.detail) qs.set("detail", "1");
       }
       const res = await fetch(`/api/sectors?${qs.toString()}`, { cache: "no-store" });
       const data = await res.json();

@@ -981,3 +981,18 @@ footer {
 
 .sec-group.active { background: rgba(94,234,212,.08); border-radius: 8px; }
 .sec-group .sec-arrow { cursor: pointer; }
+
+/* 行业列表：统一行样式与列宽，各级选中高亮一致 */
+.sec-group { grid-template-columns: 14px minmax(0,1fr) 34px 64px; gap: 4px; padding: 6px 8px; }
+.sec-item { grid-template-columns: minmax(0,1fr) 34px 64px; gap: 4px; padding: 6px 8px; }
+.sec-item.sec-child { grid-template-columns: 12px minmax(0,1fr) 34px 64px; padding: 6px 8px 6px 10px; font-size: 11.5px; }
+.sec-item.sec-grandchild { grid-template-columns: 12px minmax(0,1fr) 34px 64px; padding: 6px 8px 6px 24px; font-size: 11px; }
+.sec-item.sec-child .sec-name { color: var(--muted); }
+.sec-item.sec-grandchild .sec-name { color: var(--faint); }
+.sec-group.active,
+.sec-item.active,
+.sec-item.sec-child.active,
+.sec-item.sec-grandchild.active { background: rgba(94,234,212,.12); }
+.sec-group.active .sec-gname,
+.sec-item.sec-child.active .sec-name,
+.sec-item.sec-grandchild.active .sec-name { color: var(--accent); font-weight: 500; }

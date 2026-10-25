@@ -135,8 +135,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"market": "us", "industries": us_sectors.industries()})
             else:
                 scheme = (query.get("scheme") or ["sina"])[0]
+                detail = (query.get("detail") or [""])[0] == "1"
                 if scheme == "csi":
-                    data = industry_map.build_tree()
+                    data = industry_map.build_tree(detail)
                     if data.get("ok"):
                         self._json({"market": "cn", "scheme": "csi", "tree": data["tree"],
                                     "industries": data["industries"],
@@ -147,14 +148,8 @@ class Handler(BaseHTTPRequestHandler):
                                     "catalog_rows": data.get("catalog_rows", 0),
                                     "catalog_path": data.get("catalog_path")})
                     return
-                detail = (query.get("detail") or [""])[0] == "1"
-                if scheme == "gbt":
-                    tree = sectors.tree_with_detail() if detail else sectors.industry_tree()
-                    self._json({"market": "cn", "scheme": "gbt",
-                                "industries": sectors.gbt_industries(), "tree": tree})
-                else:
-                    self._json({"market": "cn", "scheme": "sina",
-                                "industries": sectors.industries(), "tree": []})
+                self._json({"market": "cn", "scheme": "sina",
+                            "industries": sectors.industries(), "tree": []})
             return
         if path == "/api/sectors/board":
             node = (query.get("node") or [""])[0]

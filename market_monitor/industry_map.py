@@ -162,8 +162,13 @@ def _fetch_quotes(codes: List[str]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def build_tree() -> Dict[str, Any]:
+def build_tree(detail: bool = True) -> Dict[str, Any]:
     """把映射文件 + 实时行情聚合成三级树。"""
+    cache_key = "tree" if detail else "tree2"
+    cached = _get(cache_key, 600)
+    if cached is not None:
+        return cached
+
     rows = load_rows()
     catalog = read_catalog()
     if rows is None:
@@ -184,7 +189,7 @@ def build_tree() -> Dict[str, Any]:
             continue
         l1, l2, l3 = r["level1"], r["level2"] or "（未细分）", r["level3"]
         g = tree.setdefault(l1, {"node": f"csi:{l1}", "name": l1, "count": 0, "cap": 0.0, "weighted": 0.0, "children": {}})
-        c = g["children"].setdefault(l2, {"node": f"csi:{l1}/{l2}", "name": l2, "count": 0, "cap": 0.0, "weighted": 0.0, "children": {}})
+        c = g["children"].setdefault(l2, {"node": f"csi:{l1}/{l2}", "name": l2, "count": 0, "cap": 0.0, "weighted": 0.0, "children": {}, "members": []})
         node = c
         if l3:
             s = c["children"].setdefault(l3, {"node": f"csi:{l1}/{l2}/{l3}", "name": l3, "count": 0, "cap": 0.0, "weighted": 0.0, "members": []})
@@ -193,6 +198,7 @@ def build_tree() -> Dict[str, Any]:
             s["weighted"] += q["pct"] * q["mktcap"]
             s["members"].append({"code": r["code"], "name": q["name"], "pct": round(q["pct"], 2), "mktcap": round(q["mktcap"], 2)})
             node = s
+        c["members"].append({"code": r["code"], "name": q["name"], "pct": round(q["pct"], 2), "mktcap": round(q["mktcap"], 2)})
         c["count"] += 1
         c["cap"] += q["mktcap"]
         c["weighted"] += q["pct"] * q["mktcap"]
@@ -220,6 +226,17 @@ def build_tree() -> Dict[str, Any]:
             leaves.append({"node": c["node"], "name": c["name"], "count": c["count"], "pct": c["pct"]})
     leaves.sort(key=lambda x: x["pct"], reverse=True)
 
+    if not detail:
+        # 只显示两级：把三级行业并入二级
+        for g in groups:
+            for c in g["children"]:
+                kids = c.get("children") or []
+                if kids:
+                    merged = [m for s in kids for m in s.get("members", [])]
+                    merged.sort(key=lambda m: m["mktcap"], reverse=True)
+                    c["members"] = merged
+                c["children"] = []
+
     payload = {
         "ok": True,
         "scheme": "csi",
@@ -229,7 +246,7 @@ def build_tree() -> Dict[str, Any]:
         "total": len(rows),
         "path": map_path(),
     }
-    _put("tree", payload)
+    _put(cache_key, payload)
     return payload
 
 
