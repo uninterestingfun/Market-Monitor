@@ -162,10 +162,9 @@ def _fetch_quotes(codes: List[str]) -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def build_tree(detail: bool = True) -> Dict[str, Any]:
+def build_tree() -> Dict[str, Any]:
     """把映射文件 + 实时行情聚合成三级树。"""
-    cache_key = "tree" if detail else "tree2"
-    cached = _get(cache_key, 600)
+    cached = _get("tree", 600)
     if cached is not None:
         return cached
 
@@ -226,17 +225,6 @@ def build_tree(detail: bool = True) -> Dict[str, Any]:
             leaves.append({"node": c["node"], "name": c["name"], "count": c["count"], "pct": c["pct"]})
     leaves.sort(key=lambda x: x["pct"], reverse=True)
 
-    if not detail:
-        # 只显示两级：把三级行业并入二级
-        for g in groups:
-            for c in g["children"]:
-                kids = c.get("children") or []
-                if kids:
-                    merged = [m for s in kids for m in s.get("members", [])]
-                    merged.sort(key=lambda m: m["mktcap"], reverse=True)
-                    c["members"] = merged
-                c["children"] = []
-
     payload = {
         "ok": True,
         "scheme": "csi",
@@ -246,7 +234,7 @@ def build_tree(detail: bool = True) -> Dict[str, Any]:
         "total": len(rows),
         "path": map_path(),
     }
-    _put(cache_key, payload)
+    _put("tree", payload)
     return payload
 
 

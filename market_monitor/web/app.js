@@ -1739,7 +1739,7 @@
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */
-  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), detail: false, scheme: "sina" };
+  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), scheme: "sina" };
 
   function secColor(pct) {
     const p = Math.max(-6, Math.min(6, pct || 0));
@@ -1751,18 +1751,13 @@
 
   function initSectors() {
     try {
-      // 默认展开三级（存 "0" 才表示关闭）
-      sec.detail = localStorage.getItem("mm.sectors.detail") !== "0";
       sec.scheme = localStorage.getItem("mm.sectors.scheme") || "sina";
       if (sec.scheme === "gbt") sec.scheme = "sina";
     } catch (_) {
-      sec.detail = true;
       sec.scheme = "sina";
     }
     const sbtns = document.querySelectorAll("#sec-scheme button");
     sbtns.forEach((b) => b.classList.toggle("active", b.dataset.scheme === sec.scheme));
-    const dbtnInit = $("#sec-detail");
-    if (dbtnInit) dbtnInit.hidden = sec.scheme !== "csi";
     const dbtn = $("#sec-detail");
     if (dbtn) {
       dbtn.classList.toggle("active", sec.detail);
@@ -1784,28 +1779,12 @@
           /* 忽略 */
         }
         $("#sec-scheme").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
-        const dbtn = $("#sec-detail");
-        if (dbtn) dbtn.hidden = sec.scheme !== "csi";
         sec.list = [];
         sec.tree = [];
         sec.node = "";
         sec.expanded = new Set();
         sec.expanded2 = new Set();
         closeStock();
-        loadSectors();
-      });
-      $("#sec-detail").addEventListener("click", () => {
-        sec.detail = !sec.detail;
-        try {
-          localStorage.setItem("mm.sectors.detail", sec.detail ? "1" : "0");
-        } catch (_) {
-          /* 忽略 */
-        }
-        const btn = $("#sec-detail");
-        btn.classList.toggle("active", sec.detail);
-        btn.setAttribute("aria-pressed", sec.detail ? "true" : "false");
-        sec.tree = [];
-        sec.expanded2 = new Set();
         loadSectors();
       });
       $("#sec-market").addEventListener("click", (e) => {
@@ -1868,7 +1847,6 @@
       const qs = new URLSearchParams({ market: sec.market });
       if (sec.market === "cn") {
         qs.set("scheme", sec.scheme);
-        if (sec.scheme === "csi" && sec.detail) qs.set("detail", "1");
       }
       const res = await fetch(`/api/sectors?${qs.toString()}`, { cache: "no-store" });
       const data = await res.json();

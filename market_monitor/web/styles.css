@@ -974,7 +974,6 @@ footer {
 .sec-item.sec-grandchild .sec-name { color: var(--faint); }
 .sec-item.sec-grandchild.active .sec-name { color: var(--text); }
 .sec-arrow[data-sub] { cursor: pointer; color: var(--accent); }
-#sec-detail.active { color: var(--accent); border-color: rgba(94,234,212,.4); }
 
 .sec-empty code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
 #sec-scheme { margin-right: 2px; }
