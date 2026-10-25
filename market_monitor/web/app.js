@@ -2415,8 +2415,8 @@
         const actionCls = r.action === "增持" ? "up" : r.action === "减持" ? "down" : "";
         return `<tr>
           <td class="idx">${i + 1}</td>
-          <td class="name">${r.name}</td>
-          <td>${(r.tonnes || 0).toLocaleString("en-US")} 吨</td>
+          <td class="name">${r.name}${r.local ? '<i class="src">本</i>' : ""}</td>
+          <td title="${r.source || ""}${r.as_of ? " · " + r.as_of : ""}">${(r.tonnes || 0).toLocaleString("en-US")} 吨</td>
           <td class="${cls}">${chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1)}</td>
           <td class="${cls}">${r.change_pct == null ? "—" : (r.change_pct > 0 ? "+" : "") + r.change_pct.toFixed(2) + "%"}</td>
           <td>${r.share == null ? "—" : r.share.toFixed(1) + "%"}</td>
@@ -2429,7 +2429,7 @@
     $("#gold-table").innerHTML = head + `<tbody>${body}</tbody>`;
 
     $("#gold-sub").textContent =
-      `更新于 ${d.updated_at} · 增持前列: ${(d.buyers || []).map((x) => `${x.name} +${x.change}t`).join("、") || "—"} · 来源: ${d.source}`;
+      `更新于 ${d.updated_at} · 带「本」为本地 CSV（${d.local_count || 0} 国）· 增持前列: ${(d.buyers || []).map((x) => `${x.name} +${x.change}t`).join("、") || "—"} · 来源: ${d.source}`;
 
     if (!au.chart) {
       const el = $("#gold-chart");

@@ -195,6 +195,17 @@ def cmd_debt_template(args: argparse.Namespace) -> None:
     print("  把各国财政部导出的数据填进对应 CSV，程序会自动优先使用。")
 
 
+
+def cmd_gold_template(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import gold
+
+    count = gold.write_templates(args.dir)
+    target = os.path.join(args.dir, "gold_reserves")
+    print(f"  已生成 {count} 个模板: {target}")
+    print("  填入日期+吨数（至少两行），程序会自动算出同比买卖。")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -217,6 +228,10 @@ def main() -> None:
     p_tpl = sub.add_parser("debt-template", help="生成各国主权债务 CSV 模板")
     p_tpl.add_argument("--dir", default="data")
     p_tpl.set_defaults(func=cmd_debt_template)
+
+    p_gtpl = sub.add_parser("gold-template", help="生成各国黄金储备 CSV 模板")
+    p_gtpl.add_argument("--dir", default="data")
+    p_gtpl.set_defaults(func=cmd_gold_template)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)

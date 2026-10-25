@@ -113,6 +113,27 @@ python -m venv .venv
 产物：`dist\MarketMonitor\`（目录）、`dist\MarketMonitor-portable.zip`、`dist\MarketMonitor-Setup.exe`。
 安装器由 `installer\Installer.cs` 用系统自带的 `csc.exe` 编译（.NET Framework 4.x），payload 作为程序集资源内嵌。
 
+### 自定义黄金储备数据（本地 CSV）
+
+黄金视图同样支持本地覆盖：把各国央行或世界黄金协会的月度数据放进 `data/gold_reserves/`，程序优先使用，界面上标记「本」。
+
+```bash
+python run.py gold-template          # 生成 GDP 前 50 经济体的 CSV 模板
+```
+
+格式（至少两行才能算出同比买卖）：
+
+```csv
+date,tonnes,pct_reserves,source
+2025-08-31,2302.1,7.4,世界黄金协会
+2025-09-30,2306.3,7.5,世界黄金协会
+```
+
+- `tonnes` 为黄金储备吨数，必填；`pct_reserves` 可选；
+- 程序按日期排序，**最后一行是当前值，上一行用于计算增持/减持**；
+- 以 `#` 开头的行会被忽略；
+- 本地文件优先于「世界银行 + 金价换算」的自动结果。
+
 ### 自定义主权债务数据（本地 CSV）
 
 各国财政部导出的数据可以手动放进 `data/sovereign_debt/`，程序会**优先使用**，覆盖世界银行与内置接口，界面上标记「本」。

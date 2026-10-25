@@ -135,7 +135,9 @@ class MarketService:
                  em_seconds: float = 1800.0) -> None:
         self.store = store
         try:
-            sovereign_debt.set_data_dir(os.path.dirname(os.path.abspath(store.path)))
+            data_root = os.path.dirname(os.path.abspath(store.path))
+            sovereign_debt.set_data_dir(data_root)
+            gold.set_data_dir(data_root)
         except Exception:
             pass
         self.refresh_seconds = refresh_seconds
