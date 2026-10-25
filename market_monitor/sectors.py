@@ -46,7 +46,7 @@ ETF_ALIASES: Dict[str, List[str]] = {
     "半导体": ["半导体", "芯片"],
     "元器件": ["电子", "半导体", "芯片"],
     "电子器件": ["电子", "芯片", "半导体"],
-    "电子信息": ["科技", "信息", "电子"],
+    "电子信息": ["电子", "信息"],
     "医药": ["医药", "医疗"],
     "生物制药": ["生物", "医药", "创新药"],
     "医疗保健": ["医疗", "医药"],
@@ -297,8 +297,8 @@ def leaves() -> List[Dict[str, Any]]:
     return _get("leaves", 600) or []
 
 
-def industries() -> List[Dict[str, Any]]:
-    """国民经济行业分类的 84 个大类，按涨跌幅降序。"""
+def gbt_industries() -> List[Dict[str, Any]]:
+    """国民经济行业分类（GB/T 4754）的 84 个大类，按涨跌幅降序。"""
     try:
         rows = leaves()
         if rows:
@@ -307,7 +307,18 @@ def industries() -> List[Dict[str, Any]]:
             return items
     except Exception:
         pass
-    return _sina_industries()
+    return []
+
+
+def industries() -> List[Dict[str, Any]]:
+    """新浪行业分类（49 个），按涨跌幅降序。"""
+    try:
+        items = _sina_industries()
+        if items:
+            return items
+    except Exception:
+        pass
+    return gbt_industries()
 
 
 def _sina_industries() -> List[Dict[str, Any]]:
@@ -413,13 +424,22 @@ def warm() -> None:
         pass
 
 
+CROSS_BORDER = ("港股", "香港", "恒生", "恒指", "纳指", "纳斯达克", "标普", "日经", "美国",
+                "德国", "法国", "东南亚", "中概", "亚太", "全球", "海外", "港", "HK", "中韩")
+
+
 def match_etf(industry: str) -> Optional[Dict[str, Any]]:
     """按行业名在同名 ETF 里挑成交额最大的一只。"""
-    keys = ETF_ALIASES.get(industry, [industry])
+    keys = ETF_ALIASES.get(industry)
+    if not keys:
+        keys = ETF_ALIASES.get(industry.split("·")[-1], [industry.split("·")[-1]])
     best: Optional[Dict[str, Any]] = None
     for etf in _etf_list():
         name = etf["name"]
         if not any(k in name for k in keys):
+            continue
+        # 跨市场 ETF 不算行业 ETF
+        if any(bad in name for bad in CROSS_BORDER):
             continue
         if best is None or etf["amount"] > best["amount"]:
             best = etf
@@ -616,7 +636,9 @@ def board(node: str, limit: int = 50) -> Dict[str, Any]:
             "etf": match_etf(g["name"]),
             "total_cap": g["total_cap"],
         }
-    info = next((i for i in industries() if i["node"] == node), None)
+    info = next((i for i in _sina_industries() if i["node"] == node), None)
+    if not info:
+        info = next((i for i in leaves() if i["node"] == node), None)
     if not info:
         return {"node": node, "members": [], "error": "unknown industry"}
     rows = members(node, limit)

@@ -1739,7 +1739,7 @@
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */
-  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), detail: false, scheme: "gbt" };
+  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), detail: false, scheme: "sina" };
 
   function secColor(pct) {
     const p = Math.max(-6, Math.min(6, pct || 0));
@@ -1752,15 +1752,16 @@
   function initSectors() {
     try {
       sec.detail = localStorage.getItem("mm.sectors.detail") === "1";
-      sec.scheme = localStorage.getItem("mm.sectors.scheme") || "gbt";
+      sec.scheme = localStorage.getItem("mm.sectors.scheme") || "sina";
+      if (sec.scheme === "gbt") sec.scheme = "sina";
     } catch (_) {
       sec.detail = false;
-      sec.scheme = "gbt";
+      sec.scheme = "sina";
     }
     const sbtns = document.querySelectorAll("#sec-scheme button");
     sbtns.forEach((b) => b.classList.toggle("active", b.dataset.scheme === sec.scheme));
     const dbtnInit = $("#sec-detail");
-    if (dbtnInit) dbtnInit.hidden = sec.scheme === "csi";
+    if (dbtnInit) dbtnInit.hidden = sec.scheme !== "gbt";
     const dbtn = $("#sec-detail");
     if (dbtn) {
       dbtn.classList.toggle("active", sec.detail);
@@ -1783,7 +1784,7 @@
         }
         $("#sec-scheme").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
         const dbtn = $("#sec-detail");
-        if (dbtn) dbtn.hidden = sec.scheme === "csi";
+        if (dbtn) dbtn.hidden = sec.scheme !== "gbt";
         sec.list = [];
         sec.tree = [];
         sec.node = "";
