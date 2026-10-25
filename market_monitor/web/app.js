@@ -1739,7 +1739,7 @@
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */
-  const sec = { list: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn" };
+  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set() };
 
   function secColor(pct) {
     const p = Math.max(-6, Math.min(6, pct || 0));
@@ -1762,11 +1762,21 @@
         sec.market = btn.dataset.market;
         $("#sec-market").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
         sec.list = [];
+        sec.tree = [];
+        sec.expanded = new Set();
         sec.node = "";
         closeStock();
         loadSectors();
       });
       $("#sec-list").addEventListener("click", (e) => {
+        const group = e.target.closest(".sec-group");
+        if (group && group.dataset.group) {
+          const key = group.dataset.group;
+          if (sec.expanded.has(key)) sec.expanded.delete(key);
+          else sec.expanded.add(key);
+          renderSecList();
+          return;
+        }
         const item = e.target.closest(".sec-item");
         if (item && item.dataset.node && item.dataset.node !== sec.node) {
           selectIndustry(item.dataset.node);
@@ -1791,35 +1801,61 @@
       const res = await fetch(`/api/sectors?market=${sec.market}`, { cache: "no-store" });
       const data = await res.json();
       sec.list = data.industries || [];
-      if (!sec.list.length) {
+      sec.tree = data.tree || [];
+      if (!sec.list.length && !sec.tree.length) {
         $("#sec-list").innerHTML = `<div class="sec-empty">暂无行业数据</div>`;
         return;
       }
       renderSecList();
       if (!sec.node) {
-        const preferred =
-          sec.list.find((i) => i.name.includes("电子信息")) ||
-          sec.list.slice().sort((a, b) => b.count - a.count)[0];
-        selectIndustry(preferred.node);
+        const firstGroup = sec.tree[0];
+        const preferred = firstGroup
+          ? firstGroup.children[0]
+          : sec.list.slice().sort((a, b) => b.count - a.count)[0];
+        if (firstGroup) sec.expanded.add(firstGroup.node);
+        if (preferred) selectIndustry(preferred.node);
       }
     } catch (err) {
       $("#sec-list").innerHTML = `<div class="sec-empty">加载失败：${err.message}</div>`;
     }
   }
 
+  function secRow(item, cls, dataAttr) {
+    const pct = item.pct >= 0 ? `+${item.pct.toFixed(2)}%` : `${item.pct.toFixed(2)}%`;
+    return `<button class="${cls} ${item.node === sec.node ? "active" : ""}" ${dataAttr}="${item.node}">
+      <span class="sec-name">${item.name}</span>
+      <span class="sec-count">${item.count}</span>
+      <span class="sec-pct ${item.pct >= 0 ? "up" : "down"}">${pct}</span>
+    </button>`;
+  }
+
   function renderSecList() {
     const kw = sec.keyword;
-    const rows = sec.list.filter((i) => !kw || i.name.includes(kw));
-    rows.sort((a, b) => (sec.sortAsc ? a.pct - b.pct : b.pct - a.pct));
-    $("#sec-list").innerHTML = rows
-      .map(
-        (i) => `<button class="sec-item ${i.node === sec.node ? "active" : ""}" data-node="${i.node}">
-          <span class="sec-name">${i.name}</span>
-          <span class="sec-count">${i.count}</span>
-          <span class="sec-pct ${i.pct >= 0 ? "up" : "down"}">${i.pct >= 0 ? "+" : ""}${i.pct.toFixed(2)}%</span>
-        </button>`
-      )
-      .join("");
+
+    // 美股或未取到树：平铺
+    if (!sec.tree.length) {
+      const rows = sec.list.filter((i) => !kw || i.name.includes(kw));
+      rows.sort((a, b) => (sec.sortAsc ? a.pct - b.pct : b.pct - a.pct));
+      $("#sec-list").innerHTML = rows.map((i) => secRow(i, "sec-item", "data-node")).join("");
+      return;
+    }
+
+    let html = "";
+    for (const g of sec.tree) {
+      const kids = g.children.filter((c) => !kw || c.name.includes(kw) || g.name.includes(kw));
+      if (!kids.length) continue;
+      const open = kw ? true : sec.expanded.has(g.node);
+      html += `<button class="sec-group ${open ? "open" : ""}" data-group="${g.node}">
+        <span class="sec-arrow">${open ? "▾" : "▸"}</span>
+        <span class="sec-gname">${g.name}</span>
+        <span class="sec-count">${g.count}</span>
+        <span class="sec-pct ${g.pct >= 0 ? "up" : "down"}">${g.pct >= 0 ? "+" : ""}${g.pct.toFixed(2)}%</span>
+      </button>`;
+      if (open) {
+        html += kids.map((c) => secRow(c, "sec-item sec-child", "data-node")).join("");
+      }
+    }
+    $("#sec-list").innerHTML = html || `<div class="sec-empty">没有匹配的行业</div>`;
   }
 
   async function selectIndustry(node) {

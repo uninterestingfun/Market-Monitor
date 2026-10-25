@@ -957,3 +957,13 @@ footer {
 
 /* hidden 属性优先于组件的 display（如 .btn 的 inline-flex） */
 [hidden] { display: none !important; }
+
+/* 行业树：门类分组 */
+.sec-group { display: grid; grid-template-columns: 14px minmax(0,1fr) 30px 62px; align-items: center; gap: 4px; width: 100%; padding: 6px 6px; border-radius: 8px; background: transparent; border: 0; color: var(--text); font-size: 12px; cursor: pointer; text-align: left; }
+.sec-group:hover { background: var(--panel-hover); }
+.sec-group.open { color: var(--accent); }
+.sec-arrow { color: var(--faint); font-size: 10px; }
+.sec-gname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.sec-item.sec-child { padding-left: 14px; }
+.sec-item.sec-child .sec-name { color: var(--muted); }
+.sec-item.sec-child.active .sec-name { color: var(--text); }

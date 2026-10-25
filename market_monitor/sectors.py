@@ -78,6 +78,25 @@ ETF_ALIASES: Dict[str, List[str]] = {
     "互联网": ["互联网", "科技"],
     "机械行业": ["机械"],
     "纺织": ["消费"],
+    # 国民经济行业分类（GB/T 4754）名称
+    "货币金融服务": ["银行"],
+    "资本市场服务": ["证券", "券商"],
+    "保险业": ["保险"],
+    "其他金融业": ["金融", "证券"],
+    "酒、饮料和精制茶制造业": ["酒", "食品饮料"],
+    "医药制造业": ["医药", "医疗"],
+    "汽车制造业": ["汽车"],
+    "计算机、通信和其他电子设备制造业": ["电子", "芯片", "半导体"],
+    "电气机械和器材制造业": ["新能源", "电力设备", "光伏"],
+    "有色金属冶炼和压延加工业": ["有色", "金属"],
+    "化学原料和化学制品制造业": ["化工"],
+    "农副食品加工业": ["食品饮料", "农业"],
+    "食品制造业": ["食品饮料"],
+    "纺织服装、服饰业": ["消费"],
+    "软件和信息技术服务业": ["软件", "计算机"],
+    "房地产业": ["地产", "房地产"],
+    "电力、热力生产和供应业": ["电力", "公用"],
+    "铁路、船舶、航空航天和其他运输设备制造业": ["军工", "国防"],
 }
 
 
@@ -190,8 +209,109 @@ def finance_groups() -> Dict[str, Dict[str, Any]]:
     return groups
 
 
+
+# ─────────────────── 国民经济行业分类（GB/T 4754，两级） ───────────────────
+FLJK_URL = "https://vip.stock.finance.sina.com.cn/q/view/newFLJK.php?param=sw2"
+
+GROUP_NAMES = {
+    "ZA": "农、林、牧、渔业",
+    "ZB": "采矿业",
+    "ZC": "制造业",
+    "ZD": "电力、热力、燃气及水生产和供应业",
+    "ZE": "建筑业",
+    "ZF": "批发和零售业",
+    "ZG": "交通运输、仓储和邮政业",
+    "ZH": "住宿和餐饮业",
+    "ZI": "信息传输、软件和信息技术服务业",
+    "ZJ": "金融业",
+    "ZK": "房地产业",
+    "ZL": "租赁和商务服务业",
+    "ZM": "科学研究和技术服务业",
+    "ZN": "水利、环境和公共设施管理业",
+    "ZO": "居民服务、修理和其他服务业",
+    "ZP": "教育",
+    "ZQ": "卫生和社会工作",
+    "ZR": "文化、体育和娱乐业",
+    "ZS": "公共管理、社会保障和社会组织",
+}
+
+
+def industry_tree() -> List[Dict[str, Any]]:
+    """19 个门类 + 84 个大类的两级行业树。"""
+    cached = _get("tree", 600)
+    if cached is not None:
+        return cached
+
+    text = http.get_text(FLJK_URL, headers=SINA_HEADERS, timeout=15, min_interval=0.2, encoding="gbk")
+    body = text.split("=", 1)[1].strip().rstrip(";")
+    data = json.loads(body)
+
+    leaves: List[Dict[str, Any]] = []
+    for code, raw in data.items():
+        parts = str(raw).split(",")
+        if len(parts) < 8:
+            continue
+        try:
+            count = int(parts[2])
+        except ValueError:
+            count = 0
+        leaves.append({
+            "node": code,
+            "name": parts[1],
+            "count": count,
+            "pct": round(_f(parts[5]) or 0.0, 2),
+            "amount": _f(parts[7]) or 0.0,
+            "lead": parts[12] if len(parts) > 12 else "",
+        })
+
+    groups: Dict[str, Dict[str, Any]] = {}
+    for leaf in leaves:
+        prefix = leaf["node"].split("_")[1][:2] if "_" in leaf["node"] else ""
+        g = groups.setdefault(prefix, {
+            "node": f"grp.{prefix}",
+            "name": GROUP_NAMES.get(prefix, prefix),
+            "count": 0,
+            "pct": 0.0,
+            "amount": 0.0,
+            "children": [],
+        })
+        g["children"].append(leaf)
+        g["count"] += leaf["count"]
+        g["amount"] += leaf["amount"]
+        g["pct"] += leaf["pct"] * leaf["amount"]
+
+    tree = []
+    for g in groups.values():
+        g["pct"] = round(g["pct"] / g["amount"], 2) if g["amount"] else 0.0
+        g["children"].sort(key=lambda x: x["pct"], reverse=True)
+        tree.append(g)
+    tree.sort(key=lambda x: x["pct"], reverse=True)
+
+    _put("tree", tree)
+    _put("leaves", leaves)
+    return tree
+
+
+def leaves() -> List[Dict[str, Any]]:
+    industry_tree()
+    return _get("leaves", 600) or []
+
+
 def industries() -> List[Dict[str, Any]]:
-    """新浪行业板块列表（49 个），按涨跌幅降序。"""
+    """国民经济行业分类的 84 个大类，按涨跌幅降序。"""
+    try:
+        rows = leaves()
+        if rows:
+            items = [dict(r) for r in rows]
+            items.sort(key=lambda x: x["pct"], reverse=True)
+            return items
+    except Exception:
+        pass
+    return _sina_industries()
+
+
+def _sina_industries() -> List[Dict[str, Any]]:
+    """旧版新浪行业分类（49 个），仅作兜底。"""
     cached = _get("industries", 600)
     if cached is not None:
         return cached
