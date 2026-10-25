@@ -1739,7 +1739,7 @@
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */
-  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), detail: false };
+  const sec = { list: [], tree: [], node: "", keyword: "", sortAsc: false, chart: null, bound: false, board: null, market: "cn", expanded: new Set(), expanded2: new Set(), detail: false, scheme: "gbt" };
 
   function secColor(pct) {
     const p = Math.max(-6, Math.min(6, pct || 0));
@@ -1752,9 +1752,15 @@
   function initSectors() {
     try {
       sec.detail = localStorage.getItem("mm.sectors.detail") === "1";
+      sec.scheme = localStorage.getItem("mm.sectors.scheme") || "gbt";
     } catch (_) {
       sec.detail = false;
+      sec.scheme = "gbt";
     }
+    const sbtns = document.querySelectorAll("#sec-scheme button");
+    sbtns.forEach((b) => b.classList.toggle("active", b.dataset.scheme === sec.scheme));
+    const dbtnInit = $("#sec-detail");
+    if (dbtnInit) dbtnInit.hidden = sec.scheme === "csi";
     const dbtn = $("#sec-detail");
     if (dbtn) {
       dbtn.classList.toggle("active", sec.detail);
@@ -1766,6 +1772,26 @@
     }
     if (!sec.bound) {
       sec.bound = true;
+      $("#sec-scheme").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-scheme]");
+        if (!btn || btn.dataset.scheme === sec.scheme) return;
+        sec.scheme = btn.dataset.scheme;
+        try {
+          localStorage.setItem("mm.sectors.scheme", sec.scheme);
+        } catch (_) {
+          /* 忽略 */
+        }
+        $("#sec-scheme").querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+        const dbtn = $("#sec-detail");
+        if (dbtn) dbtn.hidden = sec.scheme === "csi";
+        sec.list = [];
+        sec.tree = [];
+        sec.node = "";
+        sec.expanded = new Set();
+        sec.expanded2 = new Set();
+        closeStock();
+        loadSectors();
+      });
       $("#sec-detail").addEventListener("click", () => {
         sec.detail = !sec.detail;
         try {
@@ -1830,8 +1856,25 @@
   async function loadSectors() {
     $("#sec-list").innerHTML = `<div class="sec-empty">行业数据加载中…</div>`;
     try {
-      const res = await fetch(`/api/sectors?market=${sec.market}${sec.market === "cn" && sec.detail ? "&detail=1" : ""}`, { cache: "no-store" });
+      const qs = new URLSearchParams({ market: sec.market });
+      if (sec.market === "cn") {
+        qs.set("scheme", sec.scheme);
+        if (sec.scheme === "gbt" && sec.detail) qs.set("detail", "1");
+      }
+      const res = await fetch(`/api/sectors?${qs.toString()}`, { cache: "no-store" });
       const data = await res.json();
+      if (data.error === "missing" || data.error === "empty") {
+        const path = data.path || "data/industry_map.csv";
+        $("#sec-list").innerHTML = `<div class="sec-empty">
+          未找到自定义行业映射<br/>
+          <span class="muted">${path}</span><br/><br/>
+          运行 <code>python run.py industry-template</code> 生成模板，<br/>
+          把中证 / 中信的行业归属按 <code>code,name,level1,level2,level3</code> 填进去后刷新。
+        </div>`;
+        $("#sec-sub").textContent = "自定义分类未配置";
+        if (sec.chart) sec.chart.clear();
+        return;
+      }
       sec.list = data.industries || [];
       sec.tree = data.tree || [];
       if (!sec.list.length && !sec.tree.length) {
@@ -1919,7 +1962,7 @@
     const info = sec.list.find((i) => i.node === node);
     $("#sec-sub").textContent = `${info ? info.name : node} · 成分股加载中…`;
     try {
-      const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50&market=${sec.market}`);
+      const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50&market=${sec.market}&scheme=${sec.scheme}`);
       sec.board = await res.json();
       renderTreemap(sec.board);
     } catch (err) {

@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bonds, gold, gold_spot, macro, sectors, update, us_sectors
+from . import bonds, gold, gold_spot, industry_map, macro, sectors, update, us_sectors
 from .service import MarketService
 
 
@@ -134,9 +134,20 @@ class Handler(BaseHTTPRequestHandler):
             if market == "us":
                 self._json({"market": "us", "industries": us_sectors.industries()})
             else:
+                scheme = (query.get("scheme") or ["gbt"])[0]
+                if scheme == "csi":
+                    data = industry_map.build_tree()
+                    if data.get("ok"):
+                        self._json({"market": "cn", "scheme": "csi", "tree": data["tree"],
+                                    "industries": data["industries"],
+                                    "covered": data["covered"], "total": data["total"]})
+                    else:
+                        self._json({"market": "cn", "scheme": "csi", "error": data.get("error"),
+                                    "path": data.get("path"), "tree": [], "industries": []})
+                    return
                 detail = (query.get("detail") or [""])[0] == "1"
                 tree = sectors.tree_with_detail() if detail else sectors.industry_tree()
-                self._json({"market": "cn", "industries": sectors.industries(), "tree": tree})
+                self._json({"market": "cn", "scheme": "gbt", "industries": sectors.industries(), "tree": tree})
             return
         if path == "/api/sectors/board":
             node = (query.get("node") or [""])[0]
@@ -148,6 +159,8 @@ class Handler(BaseHTTPRequestHandler):
             limit = max(10, min(limit, 100))
             if market == "us":
                 self._json(us_sectors.board(node, limit))
+            elif (query.get("scheme") or ["gbt"])[0] == "csi":
+                self._json(industry_map.board(node) or {"error": "unknown node", "members": []})
             else:
                 self._json(sectors.board(node, limit))
             return

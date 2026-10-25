@@ -206,6 +206,16 @@ def cmd_gold_template(args: argparse.Namespace) -> None:
     print("  填入日期+吨数（至少两行），程序会自动算出同比买卖。")
 
 
+
+def cmd_industry_template(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import industry_map
+
+    path = industry_map.write_template(args.dir)
+    print(f"  已生成模板: {path}")
+    print("  把中证/中信的行业归属按 code,name,level1,level2,level3 填进去，刷新页面即可切换。")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -232,6 +242,10 @@ def main() -> None:
     p_gtpl = sub.add_parser("gold-template", help="生成各国黄金储备 CSV 模板")
     p_gtpl.add_argument("--dir", default="data")
     p_gtpl.set_defaults(func=cmd_gold_template)
+
+    p_itpl = sub.add_parser("industry-template", help="生成自定义行业分类映射模板")
+    p_itpl.add_argument("--dir", default="data")
+    p_itpl.set_defaults(func=cmd_industry_template)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)
