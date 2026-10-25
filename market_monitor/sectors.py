@@ -428,8 +428,151 @@ def match_etf(industry: str) -> Optional[Dict[str, Any]]:
     return {"code": best["code"], "name": best["name"], "pct": best["pct"]}
 
 
+
+# ────────────────────────── 三级细分（规则） ──────────────────────────
+# 新浪没有公开的三级行业清单（sw1/sw2/sw3 返回同一份 84 条），
+# 这里用「名称规则 + 名单」做近似细分，只在用户打开「三级细分」时计算。
+L3_RULES: Dict[str, List[tuple]] = {
+    "hangye_ZJ66": [
+        ("国有大型银行", ["工商银行", "建设银行", "农业银行", "中国银行", "交通银行", "邮储银行"]),
+        ("股份制银行", ["招商银行", "浦发银行", "中信银行", "兴业银行", "民生银行", "光大银行",
+                     "华夏银行", "平安银行", "浙商银行", "渤海银行", "恒丰银行"]),
+        ("城商行", ["北京银行", "上海银行", "江苏银行", "南京银行", "宁波银行", "杭州银行", "成都银行",
+                 "长沙银行", "苏州银行", "郑州银行", "西安银行", "青岛银行", "贵阳银行", "重庆银行",
+                 "兰州银行", "厦门银行", "齐鲁银行", "徽商银行", "盛京银行", "哈尔滨银行"]),
+        ("农商行", ["渝农商行", "沪农商行", "常熟银行", "紫金银行", "无锡银行", "张家港行",
+                 "苏农银行", "瑞丰银行", "江阴银行"]),
+    ],
+    "hangye_ZJ67": [
+        ("证券", ["证券"]),
+        ("基金", ["基金"]),
+        ("期货", ["期货"]),
+        ("多元金融", ["信托", "租赁", "创投", "资本", "投资"]),
+    ],
+    "hangye_ZJ68": [
+        ("寿险", ["人寿", "平安", "太保", "新华", "友邦"]),
+        ("财险", ["财险", "人保", "太平"]),
+    ],
+    "hangye_ZC15": [
+        ("白酒", ["白酒"]),
+        ("啤酒", ["啤酒"]),
+        ("葡萄酒", ["葡萄酒"]),
+        ("其他饮料", ["饮料", "茶", "乳"]),
+    ],
+    "hangye_ZC27": [
+        ("中药", ["中药", "药业", "制药"]),
+        ("生物制品", ["生物", "疫苗", "血制品"]),
+        ("化学制药", ["化学", "医药"]),
+        ("医疗器械", ["器械", "医疗"]),
+    ],
+    "hangye_ZC36": [
+        ("整车", ["汽车", "客车", "重汽"]),
+        ("零部件", ["零部件", "配件", "轮胎", "座椅"]),
+    ],
+    "hangye_ZI65": [
+        ("软件", ["软件", "信息", "数据"]),
+        ("信息安全", ["安全", "密码"]),
+        ("云服务", ["云", "计算"]),
+    ],
+    "hangye_ZC39": [
+        ("半导体", ["半导体", "芯片", "微电子", "集成电路"]),
+        ("消费电子", ["电子", "科技", "精密"]),
+        ("通信设备", ["通信", "网络", "光"]),
+    ],
+}
+
+
+def _l3_members(node: str) -> List[Dict[str, Any]]:
+    """取出某个大类的成分股并按规则分三级。"""
+    rules = L3_RULES.get(node)
+    if not rules:
+        return []
+    rows = members(node, 100)
+    buckets: List[Dict[str, Any]] = []
+    used = set()
+    for name, keys in rules:
+        picked = []
+        for r in rows:
+            code = r.get("code")
+            if code in used:
+                continue
+            stock = r.get("name") or ""
+            if stock in keys or any(k in stock for k in keys):
+                picked.append(r)
+                used.add(code)
+        if picked:
+            cap = sum(m["mktcap"] or 0 for m in picked)
+            pct = sum((m["pct"] or 0) * (m["mktcap"] or 0) for m in picked) / cap if cap else 0.0
+            buckets.append({
+                "node": f"{node}:{name}",
+                "name": name,
+                "count": len(picked),
+                "pct": round(pct, 2),
+                "members": picked,
+                "virtual": True,
+            })
+    rest = [r for r in rows if r.get("code") not in used]
+    if rest:
+        cap = sum(m["mktcap"] or 0 for m in rest)
+        pct = sum((m["pct"] or 0) * (m["mktcap"] or 0) for m in rest) / cap if cap else 0.0
+        buckets.append({
+            "node": f"{node}:其他",
+            "name": "其他",
+            "count": len(rest),
+            "pct": round(pct, 2),
+            "members": rest,
+            "virtual": True,
+        })
+    buckets.sort(key=lambda x: x["count"], reverse=True)
+    return buckets
+
+
+def tree_with_detail() -> List[Dict[str, Any]]:
+    """带三级的行业树（仅在用户开启三级细分时调用）。"""
+    cached = _get("tree_detail", 600)
+    if cached is not None:
+        return cached
+    tree = [dict(g) for g in industry_tree()]
+    for group in tree:
+        kids = []
+        for leaf in group["children"]:
+            item = dict(leaf)
+            subs = _l3_members(leaf["node"])
+            if subs:
+                item["children"] = [
+                    {"node": b["node"], "name": b["name"], "count": b["count"], "pct": b["pct"]}
+                    for b in subs
+                ]
+            kids.append(item)
+        group["children"] = kids
+    _put("tree_detail", tree)
+    return tree
+
+
+def board_detail(node: str) -> Optional[Dict[str, Any]]:
+    """三级节点（形如 hangye_ZJ66:股份制银行）的成分股。"""
+    if ":" not in node:
+        return None
+    parent, name = node.split(":", 1)
+    for bucket in _l3_members(parent):
+        if bucket["name"] == name:
+            return {
+                "node": node,
+                "name": name,
+                "count": bucket["count"],
+                "pct": bucket["pct"],
+                "members": bucket["members"][:50],
+                "etf": match_etf(name),
+                "total_cap": round(sum(m["mktcap"] or 0 for m in bucket["members"]), 2),
+            }
+    return None
+
+
 def board(node: str, limit: int = 50) -> Dict[str, Any]:
     """行业详情：名称、涨跌幅、成分股、对应 ETF。"""
+    detail = board_detail(node)
+    if detail is not None:
+        return detail
     if node.startswith("fin."):
         g = (finance_groups() or {}).get(node) or {}
         if not g:

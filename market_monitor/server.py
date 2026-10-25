@@ -134,8 +134,9 @@ class Handler(BaseHTTPRequestHandler):
             if market == "us":
                 self._json({"market": "us", "industries": us_sectors.industries()})
             else:
-                self._json({"market": "cn", "industries": sectors.industries(),
-                            "tree": sectors.industry_tree()})
+                detail = (query.get("detail") or [""])[0] == "1"
+                tree = sectors.tree_with_detail() if detail else sectors.industry_tree()
+                self._json({"market": "cn", "industries": sectors.industries(), "tree": tree})
             return
         if path == "/api/sectors/board":
             node = (query.get("node") or [""])[0]

@@ -967,3 +967,11 @@ footer {
 .sec-item.sec-child { padding-left: 14px; }
 .sec-item.sec-child .sec-name { color: var(--muted); }
 .sec-item.sec-child.active .sec-name { color: var(--text); }
+
+/* 三级细分 */
+.sec-item.sec-child { grid-template-columns: 12px minmax(0,1fr) 30px 62px; padding-left: 8px; }
+.sec-item.sec-grandchild { grid-template-columns: 12px minmax(0,1fr) 30px 62px; padding-left: 22px; font-size: 11.5px; }
+.sec-item.sec-grandchild .sec-name { color: var(--faint); }
+.sec-item.sec-grandchild.active .sec-name { color: var(--text); }
+.sec-arrow[data-sub] { cursor: pointer; color: var(--accent); }
+#sec-detail.active { color: var(--accent); border-color: rgba(94,234,212,.4); }
