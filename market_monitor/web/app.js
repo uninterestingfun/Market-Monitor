@@ -1751,11 +1751,12 @@
 
   function initSectors() {
     try {
-      sec.detail = localStorage.getItem("mm.sectors.detail") === "1";
+      // 默认展开三级（存 "0" 才表示关闭）
+      sec.detail = localStorage.getItem("mm.sectors.detail") !== "0";
       sec.scheme = localStorage.getItem("mm.sectors.scheme") || "sina";
       if (sec.scheme === "gbt") sec.scheme = "sina";
     } catch (_) {
-      sec.detail = false;
+      sec.detail = true;
       sec.scheme = "sina";
     }
     const sbtns = document.querySelectorAll("#sec-scheme button");
