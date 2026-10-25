@@ -1875,12 +1875,12 @@
         const cat = data.catalog_rows || 0;
         if (data.error === "unfilled" && cat) {
           $("#sec-list").innerHTML = `<div class="sec-empty">
-            已读取中证分类目录（<b>${cat}</b> 个行业），但还没有股票归属<br/>
+            已读取官方行业目录（<b>${cat}</b> 个行业），但还没有股票归属<br/>
             <span class="muted">${path}</span><br/><br/>
             打开该文件，在每行 <code>code</code> 列填股票代码（一只一行，可复制），<br/>
-            保存后刷新页面即可看到中证行业热力图。
+            保存后刷新页面即可看到官方行业热力图。
           </div>`;
-          $("#sec-sub").textContent = `中证分类：目录 ${cat} 个行业，待填写股票`;
+          $("#sec-sub").textContent = `官方分类：目录 ${cat} 个行业，待填写股票`;
         } else {
           $("#sec-list").innerHTML = `<div class="sec-empty">
             未找到自定义行业映射<br/>

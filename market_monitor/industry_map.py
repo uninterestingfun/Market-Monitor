@@ -99,36 +99,64 @@ def load_rows() -> Optional[List[Dict[str, str]]]:
     return rows
 
 
+def _parse_quotes(text: str) -> Dict[str, Dict[str, Any]]:
+    out: Dict[str, Dict[str, Any]] = {}
+    for line in text.split(";"):
+        if "~" not in line:
+            continue
+        f = line.split("~")
+        if len(f) < 46:
+            continue
+        code = (f[2] or "").strip()
+        if not code:
+            continue
+        head = line.split("=")[0]
+        prefix = "sh" if head.endswith("sh" + code) else ("sz" if head.endswith("sz" + code) else "bj")
+        try:
+            price = float(f[3]) if f[3] else 0.0
+            pct = float(f[32]) if f[32] else 0.0
+            cap = float(f[45]) * 1e8 if f[45] else 0.0
+        except ValueError:
+            continue
+        if price <= 0 or cap <= 0:
+            continue
+        out[prefix + code] = {"name": f[1], "price": price, "pct": pct, "mktcap": cap}
+    return out
+
+
 def _fetch_quotes(codes: List[str]) -> Dict[str, Dict[str, Any]]:
-    cached = _get("quotes", 300)
+    cached = _get("quotes", 600)
     if cached is not None:
         return cached
-    out: Dict[str, Dict[str, Any]] = {}
-    for i in range(0, len(codes), 60):
-        batch = codes[i:i + 60]
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    batches = [codes[i:i + 60] for i in range(0, len(codes), 60)]
+
+    def fetch(batch: List[str]) -> Dict[str, Dict[str, Any]]:
         try:
             text = http.get_text(TENCENT + ",".join(batch), headers=HEADERS, timeout=15, encoding="gbk")
+            return _parse_quotes(text)
         except Exception:
-            continue
-        for line in text.split(";"):
-            if "~" not in line:
-                continue
-            f = line.split("~")
-            if len(f) < 46:
-                continue
-            code = (f[2] or "").strip()
-            if not code:
-                continue
-            prefix = "sh" if line.split("=")[0].endswith("sh" + code) else ("sz" if line.split("=")[0].endswith("sz" + code) else "bj")
-            try:
-                price = float(f[3]) if f[3] else 0.0
-                pct = float(f[32]) if f[32] else 0.0
-                cap = float(f[45]) * 1e8 if f[45] else 0.0
-            except ValueError:
-                continue
-            if price <= 0 or cap <= 0:
-                continue
-            out[prefix + code] = {"name": f[1], "price": price, "pct": pct, "mktcap": cap}
+            return {}
+
+    out: Dict[str, Dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for part in pool.map(fetch, batches):
+            out.update(part)
+
+    # 未取到的代码换市场前缀再试一次（北交所/退市/特殊代码）
+    missing = [c for c in codes if c not in out]
+    if missing:
+        alt = []
+        for c in missing[:400]:
+            bare = c[2:]
+            alt.extend(["sh" + bare, "sz" + bare, "bj" + bare])
+        alt_batches = [alt[i:i + 60] for i in range(0, len(alt), 60)]
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for part in pool.map(fetch, alt_batches):
+                for key, val in part.items():
+                    out.setdefault(key, val)
     if out:
         _put("quotes", out)
     return out

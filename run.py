@@ -229,6 +229,21 @@ def cmd_csi_template(args: argparse.Namespace) -> None:
         print(f"  原文件已备份: {info['backup']}")
 
 
+
+def cmd_pdf_import(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import pdf_industry
+
+    rows = pdf_industry.parse_pdf(args.pdf)
+    if not rows:
+        print("  [失败] 未从 PDF 解析到数据，请确认文件结构")
+        sys.exit(1)
+    path = pdf_industry.write_mapping(rows, args.dir)
+    stat = pdf_industry.summary(rows)
+    print(f"  已生成: {path}")
+    print(f"  覆盖 {stat['stocks']} 只股票 · {stat['level1']} 个门类 · {stat['level2']} 个二级 · {stat['level3']} 个三级")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -263,6 +278,11 @@ def main() -> None:
     p_ctpl = sub.add_parser("csi-template", help="按中证分类目录生成映射模板")
     p_ctpl.add_argument("--dir", default="data")
     p_ctpl.set_defaults(func=cmd_csi_template)
+
+    p_pdf = sub.add_parser("pdf-import", help="从证监会行业分类 PDF 生成映射")
+    p_pdf.add_argument("--pdf", default=os.path.join("data", "中上市行业分类.pdf"))
+    p_pdf.add_argument("--dir", default="data")
+    p_pdf.set_defaults(func=cmd_pdf_import)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)
