@@ -978,3 +978,6 @@ footer {
 
 .sec-empty code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
 #sec-scheme { margin-right: 2px; }
+
+.sec-group.active { background: rgba(94,234,212,.08); border-radius: 8px; }
+.sec-group .sec-arrow { cursor: pointer; }

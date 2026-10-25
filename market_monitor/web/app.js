@@ -1822,9 +1822,16 @@
         const group = e.target.closest(".sec-group");
         if (group && group.dataset.group) {
           const key = group.dataset.group;
-          if (sec.expanded.has(key)) sec.expanded.delete(key);
-          else sec.expanded.add(key);
-          renderSecList();
+          if (e.target.closest(".sec-arrow[data-toggle]")) {
+            if (sec.expanded.has(key)) sec.expanded.delete(key);
+            else sec.expanded.add(key);
+            renderSecList();
+            return;
+          }
+          // 点门类名称：展开并显示该门类的热力图
+          sec.expanded.add(key);
+          if (key !== sec.node) selectIndustry(key);
+          else renderSecList();
           return;
         }
         const sub = e.target.closest(".sec-arrow[data-sub]");
@@ -1920,8 +1927,8 @@
       const kids = g.children.filter((c) => !kw || c.name.includes(kw) || g.name.includes(kw));
       if (!kids.length) continue;
       const open = kw ? true : sec.expanded.has(g.node);
-      html += `<button class="sec-group ${open ? "open" : ""}" data-group="${g.node}">
-        <span class="sec-arrow">${open ? "▾" : "▸"}</span>
+      html += `<button class="sec-group ${open ? "open" : ""} ${g.node === sec.node ? "active" : ""}" data-group="${g.node}">
+        <span class="sec-arrow" data-toggle="1">${open ? "▾" : "▸"}</span>
         <span class="sec-gname">${g.name}</span>
         <span class="sec-count">${g.count}</span>
         <span class="sec-pct ${g.pct >= 0 ? "up" : "down"}">${g.pct >= 0 ? "+" : ""}${g.pct.toFixed(2)}%</span>
@@ -1959,7 +1966,8 @@
     closeStock();
     sec.node = node;
     renderSecList();
-    const info = sec.list.find((i) => i.node === node);
+    const info = sec.list.find((i) => i.node === node)
+      || (sec.tree || []).find((g) => g.node === node);
     $("#sec-sub").textContent = `${info ? info.name : node} · 成分股加载中…`;
     try {
       const res = await fetch(`/api/sectors/board?node=${encodeURIComponent(node)}&limit=50&market=${sec.market}&scheme=${sec.scheme}`);

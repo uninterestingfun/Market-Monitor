@@ -573,6 +573,36 @@ def board(node: str, limit: int = 50) -> Dict[str, Any]:
     detail = board_detail(node)
     if detail is not None:
         return detail
+
+    # 门类节点（grp.ZX）：聚合其下所有二级行业的成分股
+    if node.startswith("grp."):
+        prefix = node[4:]
+        kids = [leaf for leaf in leaves() if leaf["node"].split("_")[1][:2] == prefix]
+        merged: Dict[str, Dict[str, Any]] = {}
+        group_name = GROUP_NAMES.get(prefix, prefix)
+        for leaf in kids:
+            try:
+                rows = members(leaf["node"], 100)
+            except Exception:
+                rows = []
+            for r in rows:
+                code = r.get("code")
+                if code and code not in merged:
+                    merged[code] = r
+        items = sorted(merged.values(), key=lambda r: r.get("mktcap") or 0, reverse=True)
+        cap = sum(r.get("mktcap") or 0 for r in items)
+        pct = sum((r.get("pct") or 0) * (r.get("mktcap") or 0) for r in items) / cap if cap else 0.0
+        return {
+            "node": node,
+            "name": group_name,
+            "count": len(items),
+            "pct": round(pct, 2),
+            "members": items[:limit],
+            "etf": None,
+            "total_cap": round(cap, 2),
+            "aggregated": len(kids),
+        }
+
     if node.startswith("fin."):
         g = (finance_groups() or {}).get(node) or {}
         if not g:
