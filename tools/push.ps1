@@ -14,21 +14,22 @@ if (-not (Test-Path ".git")) {
     exit 1
 }
 
-$status = git status --porcelain
-if (-not $status) {
-    Write-Host "[push] 没有需要提交的改动，直接推送…" -ForegroundColor Yellow
-} else {
-    if (-not $Message) {
-        $Message = "chore: update " + (Get-Date -Format "yyyy-MM-dd HH:mm")
-    }
+if (-not $Message) {
+    $Message = "chore: update " + (Get-Date -Format "yyyy-MM-dd HH:mm")
+}
+
+git add -A | Out-Null
+$staged = git diff --cached --name-only
+if ($staged) {
     Write-Host "[push] 本次改动：" -ForegroundColor Cyan
-    git status --short
-    git add -A
+    $staged | ForEach-Object { Write-Host "  $_" }
     git commit -m $Message | Out-Host
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[push] 提交失败" -ForegroundColor Red
         exit 1
     }
+} else {
+    Write-Host "[push] 没有需要提交的改动，检查是否有待推送的提交…" -ForegroundColor Yellow
 }
 
 Write-Host ""
