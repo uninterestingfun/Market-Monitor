@@ -1870,15 +1870,26 @@
       }
       const res = await fetch(`/api/sectors?${qs.toString()}`, { cache: "no-store" });
       const data = await res.json();
-      if (data.error === "missing" || data.error === "empty") {
+      if (data.error === "missing" || data.error === "empty" || data.error === "unfilled") {
         const path = data.path || "data/industry_map.csv";
-        $("#sec-list").innerHTML = `<div class="sec-empty">
-          未找到自定义行业映射<br/>
-          <span class="muted">${path}</span><br/><br/>
-          运行 <code>python run.py industry-template</code> 生成模板，<br/>
-          把中证 / 中信的行业归属按 <code>code,name,level1,level2,level3</code> 填进去后刷新。
-        </div>`;
-        $("#sec-sub").textContent = "自定义分类未配置";
+        const cat = data.catalog_rows || 0;
+        if (data.error === "unfilled" && cat) {
+          $("#sec-list").innerHTML = `<div class="sec-empty">
+            已读取中证分类目录（<b>${cat}</b> 个行业），但还没有股票归属<br/>
+            <span class="muted">${path}</span><br/><br/>
+            打开该文件，在每行 <code>code</code> 列填股票代码（一只一行，可复制），<br/>
+            保存后刷新页面即可看到中证行业热力图。
+          </div>`;
+          $("#sec-sub").textContent = `中证分类：目录 ${cat} 个行业，待填写股票`;
+        } else {
+          $("#sec-list").innerHTML = `<div class="sec-empty">
+            未找到自定义行业映射<br/>
+            <span class="muted">${path}</span><br/><br/>
+            ${cat ? `已检测到中证分类目录（${cat} 个行业）` : ""}<br/>
+            运行 <code>python run.py csi-template</code> 生成待填模板。
+          </div>`;
+          $("#sec-sub").textContent = "自定义分类未配置";
+        }
         if (sec.chart) sec.chart.clear();
         return;
       }

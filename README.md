@@ -169,9 +169,16 @@ date,debt_pct,debt_amount,source
 中证指数与中信证券的行业归属属于**授权数据**，没有免费公开接口（巨潮要 token、中证官网无 API）。
 这里提供导入机制：把你从 Wind / Choice / 中证官网导出的映射表整理成 CSV，程序据此建树并实时计算行情。
 
+放置中证官方分类目录 `data/中证行业分类架构.xlsx`（四级代码+名称）后，可以直接生成**待填模板**：
+
 ```bash
-python run.py industry-template     # 生成 data/industry_map.csv 模板
+python run.py csi-template          # 读取 xlsx，按 98 个三级行业生成映射模板
+python run.py industry-template     # 或生成 4 行示例模板
 ```
+
+程序用标准库解析 xlsx（不需要 openpyxl），读取「一级代码/一级行业/二级…」表头，自动向下填充层级。
+
+> 目录文件只有**分类**，不含股票归属——中证指数官网没有公开的成分股接口（巨潮需 token）。所以仍需在 `data/industry_map.csv` 的 `code` 列填股票代码，一只一行；填完切到「中证/中信」即可看到按该口径组织的热力图。
 
 格式（`#` 开头的行忽略）：
 

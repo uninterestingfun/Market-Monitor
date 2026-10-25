@@ -137,10 +137,13 @@ def _fetch_quotes(codes: List[str]) -> Dict[str, Dict[str, Any]]:
 def build_tree() -> Dict[str, Any]:
     """把映射文件 + 实时行情聚合成三级树。"""
     rows = load_rows()
+    catalog = read_catalog()
     if rows is None:
-        return {"ok": False, "error": "missing", "path": map_path()}
+        return {"ok": False, "error": "missing", "path": map_path(),
+                "catalog_rows": len(catalog), "catalog_path": find_catalog()}
     if not rows:
-        return {"ok": False, "error": "empty", "path": map_path()}
+        return {"ok": False, "error": "unfilled" if catalog else "empty", "path": map_path(),
+                "catalog_rows": len(catalog), "catalog_path": find_catalog()}
 
     codes = sorted({r["code"] for r in rows})
     quotes = _fetch_quotes(codes)
@@ -271,3 +274,133 @@ def write_template(data_dir: str) -> str:
         with open(path, "w", encoding="utf-8", newline="") as fh:
             fh.write(TEMPLATE)
     return path
+
+
+# ────────────────── 中证分类目录（xlsx，无第三方依赖） ──────────────────
+CATALOG_NAMES = ["中证行业分类架构.xlsx", "中证行业分类.xlsx", "csi_industry.xlsx"]
+_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+
+
+def _read_xlsx_rows(path: str) -> List[List[str]]:
+    """用标准库解析 xlsx 首个工作表（不依赖 openpyxl）。"""
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    with zipfile.ZipFile(path) as z:
+        names = z.namelist()
+        shared: List[str] = []
+        if "xl/sharedStrings.xml" in names:
+            root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            for si in root.iter(_NS + "si"):
+                shared.append("".join(t.text or "" for t in si.iter(_NS + "t")))
+        sheet_name = "xl/worksheets/sheet1.xml"
+        if sheet_name not in names:
+            sheets = [n for n in names if n.startswith("xl/worksheets/sheet")]
+            if not sheets:
+                return []
+            sheet_name = sheets[0]
+        root = ET.fromstring(z.read(sheet_name))
+        rows: List[List[str]] = []
+        for row in root.iter(_NS + "row"):
+            vals: List[str] = []
+            for c in row:
+                t = c.get("t")
+                v = c.find(_NS + "v")
+                if v is None:
+                    is_ = c.find(_NS + "is")
+                    vals.append("".join(x.text or "" for x in is_.iter(_NS + "t")) if is_ is not None else "")
+                elif t == "s" and shared:
+                    try:
+                        vals.append(shared[int(v.text)])
+                    except (ValueError, IndexError):
+                        vals.append("")
+                else:
+                    vals.append(v.text or "")
+            rows.append(vals)
+        return rows
+
+
+def find_catalog() -> Optional[str]:
+    base = _DATA_DIR
+    if not base or not os.path.isdir(base):
+        return None
+    for name in CATALOG_NAMES:
+        path = os.path.join(base, name)
+        if os.path.exists(path):
+            return path
+    for name in os.listdir(base):
+        if name.lower().endswith(".xlsx") and "行业" in name:
+            return os.path.join(base, name)
+    return None
+
+
+def read_catalog(path: Optional[str] = None) -> List[Dict[str, str]]:
+    """读取中证行业分类目录（四级），返回 [{l1,l2,l3,l4}]（自动向下填充）。"""
+    target = path or find_catalog()
+    if not target or not os.path.exists(target):
+        return []
+    cached = _get("catalog", 3600)
+    if cached is not None:
+        return cached
+    try:
+        rows = _read_xlsx_rows(target)
+    except Exception:
+        return []
+    if not rows:
+        return []
+    header = [str(x).strip() for x in rows[0]]
+    idx = {}
+    for i, h in enumerate(header):
+        if "一级" in h and "代码" in h:
+            idx["l1c"] = i
+        elif "一级" in h:
+            idx["l1"] = i
+        elif "二级" in h and "代码" in h:
+            idx["l2c"] = i
+        elif "二级" in h:
+            idx["l2"] = i
+        elif "三级" in h and "代码" in h:
+            idx["l3c"] = i
+        elif "三级" in h:
+            idx["l3"] = i
+    if "l1" not in idx:
+        return []
+
+    out: List[Dict[str, str]] = []
+    cur = {"l1": "", "l2": "", "l3": ""}
+    for r in rows[1:]:
+        def cell(key: str) -> str:
+            i = idx.get(key)
+            return (r[i] if i is not None and i < len(r) else "").strip()
+
+        l1 = cell("l1") or cur["l1"]
+        l2 = cell("l2") or (cur["l2"] if l1 == cur["l1"] else "")
+        l3 = cell("l3") or (cur["l3"] if l1 == cur["l1"] and l2 == cur["l2"] else "")
+        if l3 and (not cur["l3"] or l3 != cur["l3"] or l2 != cur["l2"]):
+            cur = {"l1": l1, "l2": l2 or l1, "l3": l3}
+            out.append({"l1": cur["l1"], "l2": cur["l2"], "l3": cur["l3"]})
+    _put("catalog", out)
+    return out
+
+
+def write_catalog_template(data_dir: str) -> Dict[str, Any]:
+    """用中证分类目录生成待填写的映射 CSV（stock 列留空，由用户填写）。"""
+    catalog = read_catalog()
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, FILENAME)
+    back = path + ".bak"
+    if os.path.exists(path):
+        try:
+            os.replace(path, back)
+        except Exception:
+            pass
+    lines = [
+        "# 由 data/中证行业分类架构.xlsx 生成：请把每行的 code（股票代码）填上",
+        "# 同一三级行业有多只股票时，复制该行并填不同 code；name 可留空",
+        "code,name,level1,level2,level3",
+    ]
+    for item in catalog:
+        lines.append(f",,{item['l1']},{item['l2']},{item['l3']}")
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return {"path": path, "rows": len(catalog), "backup": back if os.path.exists(back) else None}

@@ -143,7 +143,9 @@ class Handler(BaseHTTPRequestHandler):
                                     "covered": data["covered"], "total": data["total"]})
                     else:
                         self._json({"market": "cn", "scheme": "csi", "error": data.get("error"),
-                                    "path": data.get("path"), "tree": [], "industries": []})
+                                    "path": data.get("path"), "tree": [], "industries": [],
+                                    "catalog_rows": data.get("catalog_rows", 0),
+                                    "catalog_path": data.get("catalog_path")})
                     return
                 detail = (query.get("detail") or [""])[0] == "1"
                 tree = sectors.tree_with_detail() if detail else sectors.industry_tree()

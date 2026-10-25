@@ -216,6 +216,19 @@ def cmd_industry_template(args: argparse.Namespace) -> None:
     print("  把中证/中信的行业归属按 code,name,level1,level2,level3 填进去，刷新页面即可切换。")
 
 
+
+def cmd_csi_template(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import industry_map
+
+    industry_map.set_data_dir(args.dir)
+    info = industry_map.write_catalog_template(args.dir)
+    print(f"  已按中证分类目录生成 {info['rows']} 行模板: {info['path']}")
+    print("  在每行 code 列填股票代码（可复制行挂多只），刷新页面即可看到中证行业热力图。")
+    if info.get("backup"):
+        print(f"  原文件已备份: {info['backup']}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -246,6 +259,10 @@ def main() -> None:
     p_itpl = sub.add_parser("industry-template", help="生成自定义行业分类映射模板")
     p_itpl.add_argument("--dir", default="data")
     p_itpl.set_defaults(func=cmd_industry_template)
+
+    p_ctpl = sub.add_parser("csi-template", help="按中证分类目录生成映射模板")
+    p_ctpl.add_argument("--dir", default="data")
+    p_ctpl.set_defaults(func=cmd_csi_template)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)
