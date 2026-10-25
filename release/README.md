@@ -2,11 +2,11 @@
 
 | 文件 | 说明 | SHA-256 |
 | --- | --- | --- |
-| `MarketMonitor-Setup.exe` | Windows 安装包（24.9 MB） | `f40d6d6a60f3d79fa6e3ff53b77fdb6ee86c8a69d06e1e3f94a45dc0230591b1` |
+| `MarketMonitor-Setup.exe` | Windows 安装包（24.9 MB） | `06e02f037c69a3204c995237b979b31893485c7a8a26cca5e2348e4ceaa1debb` |
 
 - 双击安装，选择目录（默认 `%LOCALAPPDATA%\Programs\MarketMonitor`）。
 - 首次启动会拉取全部行情历史，约 1 分钟。
 - 若 Windows 提示 “已保护你的电脑”（SmartScreen），点「更多信息 → 仍要运行」。
 - 便携版可运行 `tools\build.ps1` 自行生成。
 
-版本：1.0.0 · 构建于 2026-10-24
+版本：1.0.0 · 构建于 2026-10-25

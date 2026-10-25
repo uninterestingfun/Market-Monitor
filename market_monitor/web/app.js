@@ -1659,6 +1659,7 @@
     $("#view-sectors").hidden = name !== "sectors";
     $("#view-macro").hidden = name !== "macro";
     $("#view-bonds").hidden = name !== "bonds";
+    $("#view-gold").hidden = name !== "gold";
     $("#view-analysis").hidden = name !== "analysis";
     try {
       const url = new URL(location.href);
@@ -1673,6 +1674,9 @@
       setTimeout(() => sec.chart && sec.chart.resize(), 60);
     } else if (name === "macro") {
       initMacro();
+    } else if (name === "gold") {
+      initGold();
+      setTimeout(() => au.chart && au.chart.resize(), 80);
     } else if (name === "bonds") {
       initBonds();
       setTimeout(() => Object.values(bd.charts).forEach((c) => c.resize()), 80);
@@ -2359,6 +2363,123 @@
     $("#bonds-sub").textContent = parts.join(" · ");
   }
 
+
+  /* ─────────────────────────── 央行黄金储备 ─────────────────────────── */
+  const au = { data: null, chart: null, bound: false, loading: false };
+
+  function initGold() {
+    if (!au.bound) {
+      au.bound = true;
+      $("#gold-refresh").addEventListener("click", () => loadGold(true));
+    }
+    if (!au.data) loadGold();
+  }
+
+  async function loadGold(force) {
+    if (au.loading) return;
+    au.loading = true;
+    $("#gold-sub").textContent = "加载中（世界银行 + 金价换算，首次约 3~6 秒）…";
+    try {
+      const res = await fetch("/api/gold" + (force ? "?refresh=1" : ""), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      au.data = await res.json();
+      renderGold();
+    } catch (err) {
+      $("#gold-sub").textContent = "加载失败：" + err.message;
+    } finally {
+      au.loading = false;
+    }
+  }
+
+  function renderGold() {
+    const d = au.data;
+    if (!d || !d.rows) return;
+    const rows = d.rows;
+
+    $("#gold-chips").innerHTML = [
+      `<span class="chip">统计年份 <b>${d.year || "—"}</b></span>`,
+      `<span class="chip">合计 <b>${(d.total_tonnes || 0).toLocaleString("en-US")} 吨</b></span>`,
+      `<span class="chip">增持 <b class="up">${d.buying} 国</b></span>`,
+      `<span class="chip">减持 <b class="down">${d.selling} 国</b></span>`,
+      `<span class="chip">净变化 <b class="${(d.net_change || 0) >= 0 ? "up" : "down"}">${(d.net_change > 0 ? "+" : "") + (d.net_change || 0)} 吨</b></span>`,
+    ].join("");
+
+    const head = `<thead><tr>
+      <th>#</th><th>经济体</th><th>黄金储备</th><th>同比变化</th><th>变化率</th>
+      <th>占外储</th><th>储备市值</th><th>行为</th><th>年份</th>
+    </tr></thead>`;
+    const body = rows
+      .map((r, i) => {
+        const chg = r.change;
+        const cls = chg == null ? "" : chg > 0.5 ? "up" : chg < -0.5 ? "down" : "";
+        const actionCls = r.action === "增持" ? "up" : r.action === "减持" ? "down" : "";
+        return `<tr>
+          <td class="idx">${i + 1}</td>
+          <td class="name">${r.name}</td>
+          <td>${(r.tonnes || 0).toLocaleString("en-US")} 吨</td>
+          <td class="${cls}">${chg == null ? "—" : (chg > 0 ? "+" : "") + chg.toFixed(1)}</td>
+          <td class="${cls}">${r.change_pct == null ? "—" : (r.change_pct > 0 ? "+" : "") + r.change_pct.toFixed(2) + "%"}</td>
+          <td>${r.share == null ? "—" : r.share.toFixed(1) + "%"}</td>
+          <td>${r.usd == null ? "—" : (r.usd / 1e8).toFixed(1) + " 亿"}</td>
+          <td class="${actionCls}">${r.action}</td>
+          <td class="idx">${r.year}</td>
+        </tr>`;
+      })
+      .join("");
+    $("#gold-table").innerHTML = head + `<tbody>${body}</tbody>`;
+
+    $("#gold-sub").textContent =
+      `更新于 ${d.updated_at} · 增持前列: ${(d.buyers || []).map((x) => `${x.name} +${x.change}t`).join("、") || "—"} · 来源: ${d.source}`;
+
+    if (!au.chart) {
+      const el = $("#gold-chart");
+      if (el) au.chart = echarts.init(el);
+    }
+    if (!au.chart) return;
+    const movers = rows
+      .filter((r) => r.change != null && Math.abs(r.change) > 0.5)
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+      .slice(0, 12)
+      .reverse();
+    au.chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: { left: 70, right: 40, top: 16, bottom: 28 },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(12,17,27,.96)",
+        borderColor: "rgba(255,255,255,.09)",
+        textStyle: { color: "#dfe6f3", fontSize: 11, fontFamily: "JetBrains Mono, Consolas, monospace" },
+        formatter: (ps) => `${ps[0].name}<br/>同比 ${ps[0].value > 0 ? "+" : ""}${ps[0].value} 吨`,
+      },
+      xAxis: {
+        type: "value",
+        ...STK_AXIS,
+        axisLabel: { ...STK_AXIS.axisLabel, formatter: (v) => v + "t" },
+        splitLine: SPLIT_LINE,
+      },
+      yAxis: { type: "category", data: movers.map((m) => m.name), ...STK_AXIS },
+      series: [
+        {
+          type: "bar",
+          data: movers.map((m) => ({
+            value: m.change,
+            itemStyle: { color: m.change >= 0 ? "rgba(255,84,104,.75)" : "rgba(25,196,138,.75)" },
+          })),
+          barMaxWidth: 16,
+          label: {
+            show: true,
+            position: "right",
+            color: "#8b95a9",
+            fontSize: 10,
+            formatter: (p) => (p.value > 0 ? "+" : "") + p.value + "t",
+          },
+        },
+      ],
+    }, true);
+  }
+
   function bindAnalysis() {
     document.querySelectorAll("#view-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2501,6 +2622,7 @@
       if (params.get("view") === "sectors") switchView("sectors");
       if (params.get("view") === "macro") switchView("macro");
       if (params.get("view") === "bonds") switchView("bonds");
+      if (params.get("view") === "gold") switchView("gold");
       const modeParam = params.get("mode");
       if (modeParam === "intraday" || modeParam === "flow") {
         state.mode = modeParam;

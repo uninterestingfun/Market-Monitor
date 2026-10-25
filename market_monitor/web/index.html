@@ -29,6 +29,7 @@
     <button data-view="sectors">板块</button>
     <button data-view="macro">宏观</button>
     <button data-view="bonds">债券</button>
+    <button data-view="gold">黄金</button>
     <button data-view="analysis">关联分析</button>
   </nav>
 
@@ -223,6 +224,26 @@
           <h4>美债月度发行量（十亿美元）</h4>
           <div id="bond-issue" class="bonds-chart"></div>
         </div>
+      </div>
+    </section>
+  </div>
+
+
+  <div id="view-gold" hidden>
+    <section class="panel gold-panel">
+      <div class="sectors-head">
+        <div class="sectors-title">
+          <h2>央行黄金储备 <span class="muted">GDP 前 50 经济体 · 年度买卖记录</span></h2>
+          <div class="sectors-sub" id="gold-sub">加载中…</div>
+        </div>
+        <div class="sectors-actions">
+          <button id="gold-refresh" class="btn ghost small">刷新</button>
+        </div>
+      </div>
+      <div class="gold-chips" id="gold-chips"></div>
+      <div class="gold-body">
+        <div class="gold-table-wrap"><table class="macro-table" id="gold-table"></table></div>
+        <div id="gold-chart" class="gold-chart"></div>
       </div>
     </section>
   </div>

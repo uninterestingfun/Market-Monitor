@@ -914,3 +914,14 @@ footer {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.30); }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* 黄金储备 */
+.gold-panel { padding: 16px 18px 12px; }
+.gold-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gold-chips .chip b { font-weight: 600; margin-left: 3px; }
+.gold-chips .chip b.up { color: var(--up); }
+.gold-chips .chip b.down { color: var(--down); }
+.gold-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1100px) { .gold-body { grid-template-columns: 1fr; } }
+.gold-table-wrap { max-height: 620px; overflow: auto; border-radius: 10px; }
+.gold-chart { height: 420px; width: 100%; }

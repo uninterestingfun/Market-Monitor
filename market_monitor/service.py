@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, macro, sectors, sovereign_debt, us_sectors
+from . import config, gold, macro, sectors, sovereign_debt, us_sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -179,6 +179,7 @@ class MarketService:
         threading.Thread(target=sectors.warm, name="warm-sectors", daemon=True).start()
         threading.Thread(target=macro.warm, name="warm-macro", daemon=True).start()
         threading.Thread(target=us_sectors.warm, name="warm-us", daemon=True).start()
+        threading.Thread(target=lambda: gold.warm(self.gold_price_by_year()), name="warm-gold", daemon=True).start()
 
     def stop(self) -> None:
         self._stop.set()
@@ -567,6 +568,25 @@ class MarketService:
         }
         self._intraday_cache[asset_id] = (now, payload)
         return payload
+
+    def gold_price_by_year(self) -> Dict[str, float]:
+        """各年度**年末**金价（美元/盎司）。
+
+        世界银行的黄金储备按年末伦敦金价估值，用年末价换算吨数才一致。
+        """
+        bars = self.store.get_bars("hf.GC", "day")
+        last: Dict[str, tuple] = {}
+        for b in bars:
+            try:
+                year = str(b[0])[:4]
+                close = float(b[4])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if close <= 0:
+                continue
+            if year not in last or str(b[0]) >= last[year][0]:
+                last[year] = (str(b[0]), close)
+        return {y: v[1] for y, v in last.items()}
 
     def last_close(self, asset_id: str) -> Optional[float]:
         """优先实时报价，缺失时回落到本地日线最后一根收盘价。"""
