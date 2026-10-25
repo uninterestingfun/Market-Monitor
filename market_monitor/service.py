@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, macro, sectors, sovereign_debt, us_sectors
+from . import config, gold, macro, sectors, sources, sovereign_debt, us_sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -417,6 +417,7 @@ class MarketService:
             "server_time": now.isoformat(timespec="seconds"),
             "sessions": sessions,
             "groups": groups,
+            "sources": sources.for_client(),
             "hero": config.HERO_IDS,
             "health": http.health(),
             "store": self.store.stats(),

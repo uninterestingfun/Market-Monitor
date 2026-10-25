@@ -939,3 +939,9 @@ footer {
 .spot-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
 .spot-meta .up { color: var(--up); }
 .spot-meta .down { color: var(--down); }
+
+/* 数据来源链接 */
+.src-link { color: var(--accent); text-decoration: none; border-bottom: 1px dashed rgba(94,234,212,.35); }
+.src-link:hover { color: #fff; border-bottom-color: rgba(255,255,255,.5); }
+.footer .src-link { color: var(--muted); }
+.footer .src-link:hover { color: var(--accent); }

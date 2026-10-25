@@ -23,6 +23,7 @@
     building: false,
     downloadTimer: null,
     lastError: 0,
+    sources: null,
   };
 
   /* ─────────────────────────── 格式化 ─────────────────────────── */
@@ -306,7 +307,7 @@
     if (a.volume != null) rows.push(["成交量", fmtVol(a.volume)]);
     if (a.amount != null) rows.push(["成交额", fmtVol(a.amount)]);
     rows.push(["更新时间", a.ts || "—"]);
-    rows.push(["数据源", (a.source || "—").toUpperCase()]);
+    rows.push(["数据源", a.source ? srcLink(a.source) : "—"]);
 
     const stats = $("#stats");
     stats.innerHTML = rows
@@ -1018,6 +1019,44 @@
     }
   }
 
+
+  /* 数据来源兜底表：/api/overview 尚未返回时也能生成链接 */
+  const SOURCE_FALLBACK = {
+    sina: ["新浪财经", "https://finance.sina.com.cn"],
+    tencent: ["腾讯行情", "https://gu.qq.com"],
+    cnbc: ["CNBC", "https://www.cnbc.com/quotes/"],
+    eastmoney: ["东方财富", "https://quote.eastmoney.com"],
+    derived: ["本地计算", ""],
+    treasury: ["美国财政部 FiscalData", "https://fiscaldata.treasury.gov"],
+    worldbank: ["世界银行", "https://data.worldbank.org"],
+    nasdaq: ["纳斯达克", "https://www.nasdaq.com/market-activity/stocks"],
+    sge: ["上海黄金交易所", "https://www.sge.com.cn"],
+    lbma: ["LBMA（伦敦金）", "https://www.lbma.org.uk/prices-and-data"],
+    cme: ["CME / COMEX", "https://www.cmegroup.com/markets/metals/precious/gold.html"],
+    bcb: ["巴西央行", "https://www.bcb.gov.br"],
+    cboe: ["CBOE", "https://www.cboe.com"],
+    frankfurter: ["欧洲央行汇率", "https://www.frankfurter.app"],
+  };
+  const SOURCE_ORDER = ["sina", "tencent", "cnbc", "eastmoney", "treasury", "worldbank",
+    "nasdaq", "sge", "lbma", "cme", "bcb", "cboe", "frankfurter"];
+
+  /* 数据来源链接：key -> <a> */
+  function srcLink(key) {
+    const k = String(key || "").toLowerCase();
+    const map = (state.sources && state.sources.map) || {};
+    const item = map[k] || (SOURCE_FALLBACK[k] ? { name: SOURCE_FALLBACK[k][0], url: SOURCE_FALLBACK[k][1] } : null);
+    if (!item) return key || "—";
+    if (!item.url) return item.name;
+    return `<a class="src-link" href="${item.url}" target="_blank" rel="noopener noreferrer">${item.name}</a>`;
+  }
+
+  function renderFooterSources() {
+    const el = $("#footer-sources");
+    if (!el) return;
+    const order = (state.sources && state.sources.order) || SOURCE_ORDER;
+    el.innerHTML = "数据来源：" + order.map((k) => srcLink(k)).join(" · ");
+  }
+
   async function fetchOverview() {
     if (state.building) return;
     state.building = true;
@@ -1026,7 +1065,9 @@
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       state.data = data;
+      if (data.sources) state.sources = data.sources;
       renderAll(data);
+      renderFooterSources();
       // 分时视图每 30 秒刷新一次
       if (state.mode === "intraday" && !document.hidden && Date.now() - state.intradayAt > 30000) {
         state.chartKey = "";
@@ -2241,8 +2282,8 @@
       })
       .join("");
     $("#macro-table").innerHTML = head + `<tbody>${body}</tbody>`;
-    $("#macro-sub").textContent =
-      `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· 带「官」的债务数据来自该国官方统计源 · ${d.source}`;
+    $("#macro-sub").innerHTML =
+      `更新于 ${d.updated_at} · 政策利率为手动维护参考值（${d.policy_as_of}）· 带「官」的债务数据来自该国官方统计源 · 来源：${srcLink("worldbank")}`;
   }
 
 
@@ -2360,7 +2401,8 @@
     parts.push(`数据: 中债 ${src.CN || "—"} / 美债 ${src.US || "—"}`);
     parts.push(`更新于 ${d.updated_at || "—"}`);
     parts.push("中债发行量暂无稳定免费源");
-    $("#bonds-sub").textContent = parts.join(" · ");
+    parts.push(`来源：${srcLink("treasury")} 发行量 · ${srcLink("eastmoney")} / ${srcLink("cnbc")} 收益率`);
+    $("#bonds-sub").innerHTML = parts.join(" · ");
   }
 
 
@@ -2468,8 +2510,8 @@
       .join("");
     $("#gold-table").innerHTML = head + `<tbody>${body}</tbody>`;
 
-    $("#gold-sub").textContent =
-      `更新于 ${d.updated_at} · 带「本」为本地 CSV（${d.local_count || 0} 国）· 增持前列: ${(d.buyers || []).map((x) => `${x.name} +${x.change}t`).join("、") || "—"} · 来源: ${d.source}`;
+    $("#gold-sub").innerHTML =
+      `更新于 ${d.updated_at} · 带「本」为本地 CSV（${d.local_count || 0} 国）· 增持前列: ${(d.buyers || []).map((x) => `${x.name} +${x.change}t`).join("、") || "—"} · 来源：${srcLink("worldbank")} 储备 + ${srcLink("cme")} 金价`;
 
     if (!au.chart) {
       const el = $("#gold-chart");
@@ -2650,6 +2692,7 @@
     tickClock();
     setInterval(tickClock, 1000);
     initChart();
+    renderFooterSources();
     fetchOverview().then(() => loadChart(true));
     fetchMarketFlow();
     window.addEventListener("hashchange", () => {
