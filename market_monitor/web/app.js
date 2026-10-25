@@ -2373,6 +2373,10 @@
       $("#gold-refresh").addEventListener("click", () => loadGold(true));
     }
     if (!au.data) loadGold();
+    loadSpot();
+    if (!au.timer) au.timer = setInterval(() => {
+      if (!$("#view-gold").hidden && !document.hidden) loadSpot();
+    }, 15000);
   }
 
   async function loadGold(force) {
@@ -2389,6 +2393,42 @@
     } finally {
       au.loading = false;
     }
+  }
+
+
+  async function loadSpot() {
+    try {
+      const res = await fetch("/api/gold/spot", { cache: "no-store" });
+      const d = await res.json();
+      renderSpot(d);
+    } catch (_) {
+      /* 静默失败，保留上一次数据 */
+    }
+  }
+
+  function renderSpot(d) {
+    const items = d.items || [];
+    if (!items.length) return;
+    const premium = d.premium_pct;
+    const premCls = premium == null ? "" : premium >= 0 ? "up" : "down";
+    const cards = items
+      .map((it) => {
+        const cls = (it.pct || 0) >= 0 ? "up" : "down";
+        const digits = it.digits || 2;
+        return `<div class="spot-card">
+          <div class="spot-name">${it.name}<span class="spot-mkt">${it.market}</span></div>
+          <div class="spot-price">${it.price.toFixed(digits)}<span class="spot-unit">${it.unit}</span></div>
+          <div class="spot-meta"><span class="${cls}">${it.pct == null ? "—" : (it.pct > 0 ? "+" : "") + it.pct.toFixed(2) + "%"}</span>
+            <span class="spot-time">${it.time || ""}</span></div>
+        </div>`;
+      })
+      .join("");
+    const extra = `<div class="spot-card spot-premium">
+        <div class="spot-name">内外价差<span class="spot-mkt">上海 vs 伦敦折人民币</span></div>
+        <div class="spot-price ${premCls}">${premium == null ? "—" : (premium > 0 ? "+" : "") + premium.toFixed(2) + "%"}</div>
+        <div class="spot-meta"><span class="spot-time">伦敦折 ${d.london_cny_per_gram || "—"} 元/克 · USDCNY ${d.usdcny || "—"}</span></div>
+      </div>`;
+    $("#spot-row").innerHTML = cards + extra;
   }
 
   function renderGold() {

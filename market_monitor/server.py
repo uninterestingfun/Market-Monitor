@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bonds, gold, macro, sectors, us_sectors
+from . import bonds, gold, gold_spot, macro, sectors, us_sectors
 from .service import MarketService
 
 
@@ -148,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(us_sectors.board(node, limit))
             else:
                 self._json(sectors.board(node, limit))
+            return
+        if path == "/api/gold/spot":
+            self._json(gold_spot.snapshot())
             return
         if path == "/api/gold":
             self._json(gold.snapshot(self.service.gold_price_by_year()))

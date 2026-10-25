@@ -925,3 +925,17 @@ footer {
 @media (max-width: 1100px) { .gold-body { grid-template-columns: 1fr; } }
 .gold-table-wrap { max-height: 620px; overflow: auto; border-radius: 10px; }
 .gold-chart { height: 420px; width: 100%; }
+
+/* 黄金现货卡片 */
+.spot-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.spot-card { background: rgba(255,255,255,.025); border: 1px solid var(--line-soft); border-radius: 10px; padding: 10px 12px; }
+.spot-card.spot-premium { border-color: rgba(94,234,212,.25); background: rgba(94,234,212,.05); }
+.spot-name { font-size: 12px; color: var(--text); display: flex; align-items: baseline; gap: 6px; }
+.spot-mkt { font-size: 9.5px; color: var(--faint); }
+.spot-price { font-family: var(--mono); font-size: 19px; margin-top: 4px; }
+.spot-price.up { color: var(--up); }
+.spot-price.down { color: var(--down); }
+.spot-unit { font-size: 10px; color: var(--faint); margin-left: 4px; font-family: var(--sans); }
+.spot-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.spot-meta .up { color: var(--up); }
+.spot-meta .down { color: var(--down); }
