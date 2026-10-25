@@ -21,6 +21,18 @@ foreach ($p in @("build\MarketMonitor", "dist\MarketMonitor", "dist\MarketMonito
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
 
+# build info: used by the in-app updater to compare with the remote commit
+$sha = ""
+try { $sha = (git rev-parse --short HEAD).Trim() } catch { $sha = "" }
+if (-not $sha) { $sha = "unknown" }
+$built = Get-Date -Format "yyyy-MM-dd HH:mm"
+Set-Content -Path "market_monitor\_buildinfo.py" -Encoding UTF8 -Value @"
+BUILD_SHA = "$sha"
+BUILT_AT = "$built"
+"@
+Write-Host "      build info: $sha / $built"
+
+
 $argsCommon = @(
     "--noconfirm", "--clean", "--windowed",
     "--icon", "assets\icon.ico",

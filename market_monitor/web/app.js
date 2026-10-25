@@ -2562,6 +2562,111 @@
     }, true);
   }
 
+
+  /* ─────────────────────────── 软件更新 ─────────────────────────── */
+  const upd = { timer: null };
+
+  function initUpdate() {
+    const btn = $("#btn-update");
+    if (!btn) return;
+    btn.addEventListener("click", openUpdate);
+    $("#up-close").addEventListener("click", () => { $("#update-modal").hidden = true; });
+    $("#update-modal").addEventListener("click", (e) => {
+      if (e.target.dataset.close) $("#update-modal").hidden = true;
+    });
+    $("#up-download").addEventListener("click", startUpdate);
+  }
+
+  async function openUpdate() {
+    $("#update-modal").hidden = false;
+    $("#up-body").textContent = "正在检查远端版本…";
+    $("#up-download").hidden = true;
+    $("#up-progress").hidden = true;
+    $("#up-bar").style.width = "0%";
+    try {
+      const res = await fetch("/api/update/check", { cache: "no-store" });
+      renderUpdate(await res.json());
+    } catch (err) {
+      $("#up-body").textContent = "检查失败：" + err.message;
+    }
+  }
+
+  function renderUpdate(d) {
+    const local = d.local || {};
+    const mode = local.mode === "exe" ? "安装版" : "源码版";
+    $("#up-local").textContent =
+      `当前 ${local.version || ""} · ${local.sha || "未知"}${local.built_at ? " · " + local.built_at : ""} · ${mode}`;
+    if (!d.ok) {
+      $("#up-body").textContent = "无法连接 GitHub：" + (d.error || "");
+      return;
+    }
+    if (d.up_to_date) {
+      $("#up-body").innerHTML =
+        `已是最新版本 <b>${d.latest_sha}</b><br/><span class="muted">${d.latest_date || ""} · ${d.latest_message || ""}</span>`;
+      return;
+    }
+    $("#up-body").innerHTML =
+      `发现新版本 <b>${d.latest_sha}</b><br/>` +
+      `<span class="muted">${d.latest_date || ""} · ${d.latest_message || ""}</span><br/>` +
+      `当前 ${local.sha || "未知"} → 最新 ${d.latest_sha}` +
+      (local.mode === "source" ? "<br/><span class=\"muted\">源码模式将执行 git pull</span>" : "");
+    $("#up-download").hidden = false;
+  }
+
+  async function startUpdate() {
+    $("#up-download").hidden = true;
+    $("#up-progress").hidden = false;
+    $("#up-body").textContent = "正在启动下载…";
+    try {
+      await fetch("/api/update/start", { cache: "no-store" });
+    } catch (err) {
+      $("#up-body").textContent = "启动下载失败：" + err.message;
+      $("#up-download").hidden = false;
+      return;
+    }
+    if (upd.timer) clearInterval(upd.timer);
+    upd.timer = setInterval(async () => {
+      let s;
+      try {
+        s = await (await fetch("/api/update/status", { cache: "no-store" })).json();
+      } catch (_) {
+        return;
+      }
+      const pct = s.total ? Math.min(100, Math.round((s.received / s.total) * 100)) : 0;
+      $("#up-bar").style.width = pct + "%";
+      if (s.error) {
+        clearInterval(upd.timer);
+        $("#up-body").textContent = "下载失败：" + s.error;
+        $("#up-download").hidden = false;
+        return;
+      }
+      if (s.done) {
+        clearInterval(upd.timer);
+        $("#up-body").textContent = "下载完成，正在启动安装程序…";
+        applyUpdate();
+        return;
+      }
+      const mb = (s.received / 1048576).toFixed(1);
+      $("#up-body").textContent = `下载中 ${pct}%（${mb} MB）`;
+    }, 700);
+  }
+
+  async function applyUpdate() {
+    try {
+      const r = await (await fetch("/api/update/apply", { cache: "no-store" })).json();
+      if (r.ok) {
+        $("#up-body").textContent = r.mode === "source"
+          ? "已拉取最新代码，请重启程序生效。"
+          : "安装程序已启动，本窗口稍后会自动关闭并重新打开。";
+      } else {
+        $("#up-body").textContent = "启动安装失败：" + (r.error || "");
+        $("#up-download").hidden = false;
+      }
+    } catch (err) {
+      $("#up-body").textContent = "启动安装失败：" + err.message;
+    }
+  }
+
   function bindAnalysis() {
     document.querySelectorAll("#view-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2675,6 +2780,7 @@
   function boot() {
     bind();
     bindAnalysis();
+    initUpdate();
     // 心跳：桌面版据此判断窗口是否还开着（浏览器启动进程会立刻退出，不能当窗口生命周期用）
     const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
     ping();

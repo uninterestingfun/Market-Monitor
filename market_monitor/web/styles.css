@@ -945,3 +945,15 @@ footer {
 .src-link:hover { color: #fff; border-bottom-color: rgba(255,255,255,.5); }
 .footer .src-link { color: var(--muted); }
 .footer .src-link:hover { color: var(--accent); }
+
+/* 软件更新 */
+.update-dialog { width: min(560px, 92vw); }
+.up-body { font-size: 13px; line-height: 1.7; color: var(--text); margin: 6px 0 12px; }
+.up-body .muted, .up-body .muted * { color: var(--faint); font-size: 11.5px; }
+.up-progress { height: 6px; background: rgba(255,255,255,.06); border-radius: 999px; overflow: hidden; margin-bottom: 12px; }
+.up-progress[hidden] { display: none; }
+.up-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .2s ease; }
+.up-actions { display: flex; gap: 10px; align-items: center; }
+
+/* hidden 属性优先于组件的 display（如 .btn 的 inline-flex） */
+[hidden] { display: none !important; }

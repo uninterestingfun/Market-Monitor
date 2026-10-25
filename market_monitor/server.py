@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bonds, gold, gold_spot, macro, sectors, us_sectors
+from . import bonds, gold, gold_spot, macro, sectors, update, us_sectors
 from .service import MarketService
 
 
@@ -148,6 +148,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(us_sectors.board(node, limit))
             else:
                 self._json(sectors.board(node, limit))
+            return
+        if path == "/api/update/check":
+            self._json(update.check())
+            return
+        if path == "/api/update/start":
+            self._json(update.start_download())
+            return
+        if path == "/api/update/status":
+            self._json(update.status())
+            return
+        if path == "/api/update/apply":
+            self._json(update.apply_update())
             return
         if path == "/api/gold/spot":
             self._json(gold_spot.snapshot())

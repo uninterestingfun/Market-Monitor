@@ -60,6 +60,13 @@
       </svg>
     </button>
 
+    <button class="btn" id="btn-update" title="检查并安装新版本">
+      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+        <path d="M12 3v9m0 0l-3.2-3.2M12 12l3.2-3.2M4.5 16.5A7 7 0 0019.5 16.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span id="update-label">检查更新</span>
+    </button>
+
     <button class="btn" id="btn-download" title="下载全部标的历史数据">
       <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
         <path d="M12 4v10m0 0l-3.6-3.6M12 14l3.6-3.6M5 18h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
@@ -342,6 +349,22 @@
 </footer>
 
 <div class="toast" id="toast" role="status"></div>
+
+<div class="stock-modal" id="update-modal" hidden>
+  <div class="stock-backdrop" data-close="1"></div>
+  <div class="stock-dialog update-dialog" role="dialog" aria-modal="true" aria-label="检查更新">
+    <header class="stock-head">
+      <div class="stock-title"><b>软件更新</b><span class="muted" id="up-local"></span></div>
+      <button class="btn ghost small" id="up-close">关闭</button>
+    </header>
+    <div class="up-body" id="up-body">正在检查远端版本…</div>
+    <div class="up-progress" id="up-progress" hidden><div class="up-bar" id="up-bar"></div></div>
+    <div class="up-actions">
+      <button class="btn" id="up-download" hidden>下载并安装</button>
+      <a class="btn ghost small" id="up-repo" href="https://github.com/uninterestingfun/Market-Monitor" target="_blank" rel="noopener noreferrer">打开仓库</a>
+    </div>
+  </div>
+</div>
 
 <script src="/static/vendor/echarts.min.js"></script>
 <script src="/static/app.js"></script>

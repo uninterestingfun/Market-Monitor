@@ -156,6 +156,17 @@ date,debt_pct,debt_amount,source
 - 以 `#` 开头的行会被忽略；
 - 程序按日期排序取最后一条有效记录，改完文件刷新页面即可生效（缓存 1 小时）。
 
+### 应用内更新
+
+工具栏「检查更新」会对比本地构建 SHA 与 GitHub 上 `main` 的最新提交：
+
+| 模式 | 行为 |
+| --- | --- |
+| 安装版（exe） | 下载 `release/MarketMonitor-Setup.exe`，退出程序后静默覆盖安装并自动重新打开 |
+| 源码版 | 执行 `git pull --ff-only`，重启生效 |
+
+构建时 `tools/build.ps1` 会把当前 git SHA 和构建时间写入 `market_monitor/_buildinfo.py`，所以安装版也能准确报出版本。
+
 ## 命令
 
 | 命令 | 说明 |
