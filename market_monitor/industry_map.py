@@ -30,6 +30,37 @@ _CACHE: Dict[str, tuple] = {}
 _DATA_DIR: Optional[str] = None
 
 
+# ────────────────── 内置资源播种（安装后即可用） ──────────────────
+def _asset_dir() -> str:
+    """打包后资源在 _MEIPASS 下，开发时取包内 assets 目录。"""
+    import sys
+
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return os.path.join(base, "market_monitor", "assets")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+
+def ensure_seed(data_dir: str) -> Dict[str, Any]:
+    """把内置的行业映射与 PDF 复制到 data/ 下（已存在则不动）。"""
+    seeded = []
+    os.makedirs(data_dir, exist_ok=True)
+    src_dir = _asset_dir()
+    for name in (FILENAME, "中上市行业分类.pdf"):
+        src = os.path.join(src_dir, name)
+        dst = os.path.join(data_dir, name)
+        if os.path.exists(dst) or not os.path.exists(src):
+            continue
+        try:
+            import shutil
+
+            shutil.copyfile(src, dst)
+            seeded.append(name)
+        except Exception:
+            continue
+    return {"seeded": seeded}
+
+
 def set_data_dir(path: str) -> None:
     global _DATA_DIR
     _DATA_DIR = path

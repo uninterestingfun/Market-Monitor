@@ -139,6 +139,7 @@ class MarketService:
             sovereign_debt.set_data_dir(data_root)
             gold.set_data_dir(data_root)
             industry_map.set_data_dir(data_root)
+            industry_map.ensure_seed(data_root)
         except Exception:
             pass
         self.refresh_seconds = refresh_seconds
