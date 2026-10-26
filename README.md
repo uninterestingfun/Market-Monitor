@@ -200,7 +200,7 @@ python run.py csi-template          # 读取 data/中证行业分类架构.xlsx�
 
 | 模式 | 行为 |
 | --- | --- |
-| 安装版（exe） | 下载 `release/MarketMonitor-Setup.exe`，退出程序后静默覆盖安装并自动重新打开 |
+| 安装版（exe） | 从 **多个下载镜像**（ghfast.top → gh-proxy.com → ghproxy.net → 直连 → jsDelivr）依次尝试并支持断点续传，下载 `release/MarketMonitor-Setup.exe`，退出程序后静默覆盖安装并自动重新打开 |
 | 源码版 | 执行 `git pull --ff-only`，重启生效 |
 
 构建时 `tools/build.ps1` 会把当前 git SHA 和构建时间写入 `market_monitor/_buildinfo.py`，所以安装版也能准确报出版本。

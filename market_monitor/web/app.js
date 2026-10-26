@@ -2779,7 +2779,8 @@
         return;
       }
       const mb = (s.received / 1048576).toFixed(1);
-      $("#up-body").textContent = `下载中 ${pct}%（${mb} MB）`;
+      const via = s.mirror ? ` · ${s.mirror}` : "";
+      $("#up-body").textContent = `下载中 ${pct}%（${mb} MB）${via}`;
     }, 700);
   }
 

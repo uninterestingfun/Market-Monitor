@@ -10,7 +10,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -18,6 +18,21 @@ REPO = "uninterestingfun/Market-Monitor"
 API_COMMIT = f"https://api.github.com/repos/{REPO}/commits/main"
 RAW_SETUP = f"https://raw.githubusercontent.com/{REPO}/main/release/MarketMonitor-Setup.exe"
 HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "MarketMonitor-Updater"}
+
+# 国内直连 raw.githubusercontent.com 经常超时，按顺序尝试加速镜像
+MIRRORS = [
+    "https://ghfast.top/",
+    "https://gh-proxy.com/",
+    "https://ghproxy.net/",
+    "",
+]
+CDN_SETUP = f"https://cdn.jsdelivr.net/gh/{REPO}@main/release/MarketMonitor-Setup.exe"
+
+
+def download_urls() -> List[str]:
+    urls = [prefix + RAW_SETUP for prefix in MIRRORS]
+    urls.append(CDN_SETUP)
+    return urls
 
 VERSION = "1.0.0"
 
@@ -29,6 +44,7 @@ _STATE: Dict[str, Any] = {
     "path": None,
     "total": 0,
     "received": 0,
+    "mirror": "",
 }
 
 
@@ -73,9 +89,19 @@ def local_info() -> Dict[str, Any]:
 def check() -> Dict[str, Any]:
     local = local_info()
     try:
-        r = requests.get(API_COMMIT, headers=HEADERS, timeout=15)
-        r.raise_for_status()
-        j = r.json()
+        last: Optional[Exception] = None
+        j = None
+        for _ in range(3):
+            try:
+                r = requests.get(API_COMMIT, headers=HEADERS, timeout=(10, 25))
+                r.raise_for_status()
+                j = r.json()
+                break
+            except Exception as exc:
+                last = exc
+                time.sleep(1.5)
+        if j is None:
+            raise last or RuntimeError("GitHub API 不可达")
         latest_sha = (j.get("sha") or "")[:7]
         commit = j.get("commit") or {}
         date = (commit.get("committer") or {}).get("date") or ""
@@ -103,26 +129,61 @@ def _download_worker() -> None:
     dest_dir = os.path.join(data_dir(), "updates")
     os.makedirs(dest_dir, exist_ok=True)
     dest = os.path.join(dest_dir, "MarketMonitor-Setup.exe")
-    try:
-        with requests.get(RAW_SETUP, headers=HEADERS, timeout=30, stream=True) as r:
-            r.raise_for_status()
-            total = int(r.headers.get("Content-Length") or 0)
-            with _LOCK:
-                _STATE.update({"total": total, "received": 0})
-            tmp = dest + ".part"
-            with open(tmp, "wb") as fh:
-                for chunk in r.iter_content(chunk_size=256 * 1024):
-                    if not chunk:
-                        continue
-                    fh.write(chunk)
+    tmp = dest + ".part"
+    total = 0
+    received = 0
+    errors: List[str] = []
+
+    for url in download_urls():
+        label = url.split("/")[2] if "//" in url else "direct"
+        try:
+            headers = dict(HEADERS)
+            if received:
+                headers["Range"] = f"bytes={received}-"
+            # 直连给较短超时，镜像放宽
+            timeout = (6, 18) if label == "raw.githubusercontent.com" else (12, 60)
+            with requests.get(url, headers=headers, timeout=timeout, stream=True) as r:
+                if r.status_code not in (200, 206):
+                    raise RuntimeError(f"HTTP {r.status_code}")
+                if not total:
+                    cr = r.headers.get("Content-Range") or ""
+                    if "/" in cr:
+                        total = int(cr.rsplit("/", 1)[-1])
+                    else:
+                        total = int(r.headers.get("Content-Length") or 0)
                     with _LOCK:
-                        _STATE["received"] += len(chunk)
+                        _STATE["total"] = total
+                mode = "ab" if (received and r.status_code == 206) else "wb"
+                if mode == "wb":
+                    received = 0
+                    with _LOCK:
+                        _STATE["received"] = 0
+                with _LOCK:
+                    _STATE["mirror"] = label
+                with open(tmp, mode) as fh:
+                    for chunk in r.iter_content(chunk_size=256 * 1024):
+                        if not chunk:
+                            continue
+                        fh.write(chunk)
+                        received += len(chunk)
+                        with _LOCK:
+                            _STATE["received"] = received
+                if total and received < total:
+                    raise RuntimeError("下载不完整")
             os.replace(tmp, dest)
-        with _LOCK:
-            _STATE.update({"running": False, "done": True, "path": dest, "error": None})
-    except Exception as exc:
-        with _LOCK:
-            _STATE.update({"running": False, "done": False, "error": str(exc)[:140]})
+            with _LOCK:
+                _STATE.update({"running": False, "done": True, "path": dest, "error": None})
+            return
+        except Exception as exc:
+            errors.append(f"{label}: {str(exc)[:60]}")
+            continue
+
+    with _LOCK:
+        _STATE.update({
+            "running": False,
+            "done": False,
+            "error": "所有下载地址均失败（" + "；".join(errors[:3]) + "），可点「打开仓库」手动下载安装包",
+        })
 
 
 def start_download() -> Dict[str, Any]:
