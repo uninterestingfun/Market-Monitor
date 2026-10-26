@@ -351,6 +351,23 @@ def match_etf(industry: str) -> Optional[Dict[str, Any]]:
 
 def board(node: str, limit: int = 50) -> Dict[str, Any]:
     """行业详情：名称、涨跌幅、成分股、对应 ETF。"""
+    # 金融细分（fin.bank / fin.broker / fin.insurance / fin.other）
+    if node.startswith("fin."):
+        g = (finance_groups() or {}).get(node)
+        if not g or not g.get("count"):
+            return {"node": node, "members": [], "error": "unknown industry"}
+        rows = g.get("members") or []
+        ranked = sorted(rows, key=lambda r: r.get("mktcap") or 0, reverse=True)
+        return {
+            "node": node,
+            "name": g["name"],
+            "count": g["count"],
+            "pct": g["pct"],
+            "members": ranked[:limit],
+            "etf": match_etf(g["name"]),
+            "total_cap": round(sum(r.get("mktcap") or 0 for r in rows), 2),
+        }
+
     info = next((i for i in _sina_industries() if i["node"] == node), None)
     if not info:
         return {"node": node, "members": [], "error": "unknown industry"}
