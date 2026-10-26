@@ -34,7 +34,9 @@ def download_urls() -> List[str]:
     urls.append(CDN_SETUP)
     return urls
 
-VERSION = "1.0.0"
+from .version import full_version as _full_version
+
+VERSION = _full_version()
 
 _LOCK = threading.Lock()
 _STATE: Dict[str, Any] = {

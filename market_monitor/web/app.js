@@ -1068,6 +1068,10 @@
       if (data.sources) state.sources = data.sources;
       renderAll(data);
       renderFooterSources();
+    fetch("/api/version").then((r) => r.json()).then((d) => {
+      const el = $("#footer-version");
+      if (el) el.textContent = `v${d.version}${d.stamp && d.stamp.includes("+") ? " · " + d.stamp.split("+")[1] : ""}`;
+    }).catch(() => {});
       // 分时视图每 30 秒刷新一次
       if (state.mode === "intraday" && !document.hidden && Date.now() - state.intradayAt > 30000) {
         state.chartKey = "";

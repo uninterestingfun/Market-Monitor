@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import bonds, gold, gold_spot, industry_map, macro, sectors, update, us_sectors
+from .version import build_stamp, full_version
 from .service import MarketService
 
 
@@ -93,6 +94,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/bye":
             self.service.farewell()
             self._json({"ok": True})
+            return
+        if path == "/api/version":
+            self._json({"version": full_version(), "stamp": build_stamp()})
             return
         if path == "/api/overview":
             self._json(self.service.snapshot())

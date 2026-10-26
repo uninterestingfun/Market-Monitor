@@ -26,11 +26,14 @@ $sha = ""
 try { $sha = (git rev-parse --short HEAD).Trim() } catch { $sha = "" }
 if (-not $sha) { $sha = "unknown" }
 $built = Get-Date -Format "yyyy-MM-dd HH:mm"
+$ver = ""
+try { $ver = (Select-String -Path "market_monitor\version.py" -Pattern '^__version__ = "(.+)"').Matches[0].Groups[1].Value } catch { $ver = "0.0.0" }
 Set-Content -Path "market_monitor\_buildinfo.py" -Encoding UTF8 -Value @"
 BUILD_SHA = "$sha"
 BUILT_AT = "$built"
+BUILD_VERSION = "$ver"
 "@
-Write-Host "      build info: $sha / $built"
+Write-Host "      build info: v$ver / $sha / $built"
 
 
 $argsCommon = @(
