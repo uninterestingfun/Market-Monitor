@@ -16,6 +16,7 @@ import requests
 
 REPO = "uninterestingfun/Market-Monitor"
 API_COMMIT = f"https://api.github.com/repos/{REPO}/commits/main"
+COMPARE_API = f"https://api.github.com/repos/{REPO}/compare/{{sha}}...main"
 RAW_SETUP = f"https://raw.githubusercontent.com/{REPO}/main/release/MarketMonitor-Setup.exe"
 HEADERS = {"Accept": "application/vnd.github+json", "User-Agent": "MarketMonitor-Updater"}
 
@@ -88,8 +89,35 @@ def local_info() -> Dict[str, Any]:
     }
 
 
+def _compare_status(local_sha: str) -> Dict[str, Any]:
+    """用 compare 接口判断本地提交与 main 的关系。
+
+    status: ahead = 远端更新；behind = 本地更新；identical = 一致；diverged = 分叉
+    """
+    if not local_sha:
+        return {}
+    try:
+        r = requests.get(COMPARE_API.format(sha=local_sha), headers=HEADERS, timeout=(10, 25))
+        if r.status_code != 200:
+            return {}
+        j = r.json()
+        msgs = []
+        for c in j.get("commits") or []:
+            msg = ((c.get("commit") or {}).get("message") or "").splitlines()
+            if msg:
+                msgs.append(msg[0])
+        return {
+            "status": j.get("status") or "",
+            "ahead_by": int(j.get("ahead_by") or 0),
+            "behind_by": int(j.get("behind_by") or 0),
+            "messages": msgs,
+        }
+    except Exception:
+        return {}
+
+
 def check() -> Dict[str, Any]:
-    """按 git 提交 SHA 判断新旧；版本号只用于展示。"""
+    """按 git 提交判断新旧：本地是否落后于远端 main。版本号只用于展示。"""
     local = local_info()
     try:
         last: Optional[Exception] = None
@@ -110,7 +138,22 @@ def check() -> Dict[str, Any]:
         commit = j.get("commit") or {}
         date = (commit.get("committer") or {}).get("date") or ""
         message = (commit.get("message") or "").splitlines()[0][:80]
-        up_to_date = bool(local["sha"]) and local["sha"] == latest_sha
+
+        # 优先用 compare：本地提交在 main 历史里就不算过期（发布提交本身不触发更新）
+        rel = _compare_status(local["sha"])
+        status = rel.get("status", "")
+        if status == "ahead":
+            # 只有 release: 开头的提交（仅同步二进制）不算应用更新
+            msgs = rel.get("messages") or []
+            needs_update = not (msgs and all(m.startswith("release:") for m in msgs))
+        elif status in ("identical", "behind"):
+            needs_update = False
+        elif status == "diverged":
+            needs_update = False
+        else:
+            # compare 不可用时退回直接比较
+            needs_update = bool(local["sha"]) and local["sha"] != latest_sha
+
         return {
             "ok": True,
             "local": local,
@@ -118,8 +161,10 @@ def check() -> Dict[str, Any]:
             "latest_sha": latest_sha,
             "latest_date": date,
             "latest_message": message,
-            "up_to_date": up_to_date,
-            "needs_update": not up_to_date,
+            "behind_by": rel.get("ahead_by", 0),
+            "relation": status,
+            "up_to_date": not needs_update,
+            "needs_update": needs_update,
             "compare": "sha",
             "repo": f"https://github.com/{REPO}",
         }
