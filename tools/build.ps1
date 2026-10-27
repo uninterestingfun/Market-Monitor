@@ -41,6 +41,8 @@ $argsCommon = @(
     "--icon", "assets\icon.ico",
     "--add-data", "market_monitor\web;market_monitor\web",
     "--add-data", "market_monitor\assets;market_monitor\assets",
+    "--collect-all", "lightgbm",
+    "--hidden-import", "lightgbm",
     "--exclude-module", "matplotlib",
     "--exclude-module", "pandas",
     "--exclude-module", "PIL",

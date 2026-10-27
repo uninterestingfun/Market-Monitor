@@ -2,3 +2,5 @@ requests>=2.28
 numpy>=1.23
 # 说明：运行只需要 requests + numpy；行情解析、Web 服务、SQLite 存储、前端资源全部走标准库或内置文件。
 # Python 3.9+ 即可，Windows / macOS / Linux 通用。
+lightgbm>=4.0
+scipy>=1.9

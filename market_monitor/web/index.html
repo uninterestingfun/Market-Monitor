@@ -321,6 +321,29 @@
 
     <section class="an-summary" id="an-summary"></section>
 
+    <section class="panel ml-panel" id="ml-panel">
+      <div class="panel-head">
+        <h3>LightGBM 概率预测</h3>
+        <span class="chip" id="ml-sub">用左侧已选指标预测下一期波动区间</span>
+      </div>
+      <div class="ml-controls">
+        <span class="opt-label">预测目标</span>
+        <span class="ml-target" id="ml-target">未选择</span>
+        <span class="opt-label">历史窗口 T</span>
+        <input id="ml-window" type="number" min="5" max="120" step="1" value="20" />
+        <span class="opt-label">区间数</span>
+        <select id="ml-buckets">
+          <option value="4">4 档</option>
+          <option value="6" selected>6 档</option>
+          <option value="8">8 档</option>
+          <option value="10">10 档</option>
+        </select>
+        <button class="btn small" id="ml-run">训练并预测</button>
+      </div>
+      <div id="ml-chart" class="chart ml-chart"></div>
+      <div class="ml-meta" id="ml-meta">第一个选中的指标作为预测目标，其余指标作为输入特征。</div>
+    </section>
+
     <section class="analysis-lower">
       <div class="panel an-pairs-panel" id="an-pairs-wrap" hidden>
         <div class="panel-head">

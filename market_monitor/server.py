@@ -95,6 +95,17 @@ class Handler(BaseHTTPRequestHandler):
             self.service.farewell()
             self._json({"ok": True})
             return
+        if path == "/api/mlsignal":
+            raw = (query.get("assets") or [""])[0]
+            assets = [a.strip() for a in raw.split(",") if a.strip()][:10]
+            try:
+                window = int((query.get("window") or ["20"])[0])
+                buckets = int((query.get("buckets") or ["6"])[0])
+            except ValueError:
+                window, buckets = 20, 6
+            mode = (query.get("mode") or ["quantile"])[0]
+            self._json(self.service.mlsignal(assets, window, buckets, mode))
+            return
         if path == "/api/version":
             self._json({"version": full_version(), "stamp": build_stamp()})
             return

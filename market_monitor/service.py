@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, industry_map, macro, sectors, sources, sovereign_debt, us_sectors
+from . import config, gold, industry_map, macro, mlmodel, sectors, sources, sovereign_debt, us_sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -187,6 +187,13 @@ class MarketService:
 
     def stop(self) -> None:
         self._stop.set()
+
+    def mlsignal(self, assets: List[str], window: int = 20, buckets: int = 6, mode: str = "quantile") -> dict:
+        """LightGBM 概率预测：N 个指标历史 → 目标指标下一期波动区间概率。"""
+        try:
+            return mlmodel.predict(assets, window=window, buckets=buckets, mode=mode)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
 
     def ping(self) -> None:
         """前端心跳：桌面版据此判断窗口是否还开着。"""

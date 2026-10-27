@@ -1347,6 +1347,7 @@
       const box = row.querySelector("input");
       if (box) box.checked = on;
     });
+    if (typeof updateMlTarget === "function") updateMlTarget();
   }
 
   function toggleAsset(id) {
@@ -2805,6 +2806,109 @@
     }
   }
 
+
+  /* ───────────────────── LightGBM 概率预测 ───────────────────── */
+  const ml = { chart: null, bound: false, loading: false };
+
+  function initMl() {
+    const btn = $("#ml-run");
+    if (!btn) return;
+    if (!ml.bound) {
+      ml.bound = true;
+      btn.addEventListener("click", runMl);
+      $("#ml-window").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runMl();
+      });
+    }
+    updateMlTarget();
+  }
+
+  function updateMlTarget() {
+    const el = $("#ml-target");
+    if (!el) return;
+    const ids = (an.ids || []).filter(Boolean);
+    if (!ids.length) {
+      el.textContent = "未选择";
+      el.title = "";
+      return;
+    }
+    el.textContent = `${anName(ids[0])}（${ids[0]}）· 特征 ${Math.max(0, ids.length - 1)} 个`;
+    el.title = ids.join(", ");
+  }
+
+  async function runMl() {
+    if (ml.loading) return;
+    const ids = (an.ids || []).filter(Boolean).slice(0, 8);
+    if (ids.length < 2) {
+      $("#ml-meta").textContent = "至少选 2 个指标：第一个作为预测目标，其余作为输入。";
+      return;
+    }
+    const window = Math.max(5, Math.min(120, parseInt($("#ml-window").value, 10) || 20));
+    const buckets = parseInt($("#ml-buckets").value, 10) || 6;
+    ml.loading = true;
+    $("#ml-meta").textContent = "正在训练模型…（首次约 1-3 秒）";
+    try {
+      const url = `/api/mlsignal?assets=${encodeURIComponent(ids.join(","))}&window=${window}&buckets=${buckets}`;
+      const d = await (await fetch(url, { cache: "no-store" })).json();
+      if (!d.ok) {
+        $("#ml-meta").textContent = d.error || "预测失败";
+        return;
+      }
+      renderMl(d);
+    } catch (err) {
+      $("#ml-meta").textContent = "预测失败：" + err.message;
+    } finally {
+      ml.loading = false;
+    }
+  }
+
+  function renderMl(d) {
+    const el = $("#ml-chart");
+    if (!el || !window.echarts) return;
+    if (!ml.chart) ml.chart = echarts.init(el, null, { renderer: "canvas" });
+    const labels = d.labels || [];
+    const probs = d.probs || [];
+    const maxIdx = probs.indexOf(Math.max(...probs));
+    ml.chart.setOption({
+      backgroundColor: "transparent",
+      grid: { left: 48, right: 16, top: 24, bottom: 30 },
+      xAxis: {
+        type: "category",
+        data: labels,
+        axisLine: { lineStyle: { color: "rgba(255,255,255,.12)" } },
+        axisLabel: { color: "#8b95a5", fontSize: 11, interval: 0, rotate: labels.length > 6 ? 20 : 0 },
+      },
+      yAxis: {
+        type: "value",
+        name: "概率 %",
+        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        splitLine: { lineStyle: { color: "rgba(255,255,255,.06)" } },
+        axisLabel: { color: "#8b95a5", fontSize: 10 },
+      },
+      tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
+      series: [{
+        type: "bar",
+        data: probs.map((v, i) => ({
+          value: v,
+          itemStyle: { color: i === maxIdx ? "#5eead4" : "rgba(94,234,212,.35)", borderRadius: [4, 4, 0, 0] },
+        })),
+        barWidth: "52%",
+        label: { show: true, position: "top", color: "#c7d2e0", fontSize: 11, formatter: "{c}%" },
+      }],
+    }, true);
+    ml.chart.resize();
+
+    const engine = d.engine === "lightgbm" ? "LightGBM" : "内置逻辑回归（未安装 LightGBM）";
+    const top = (d.importance || []).slice(0, 5)
+      .map((x) => `${x.name} ${x.gain}%`).join(" · ") || "—";
+    $("#ml-meta").innerHTML =
+      `<span class="chip">${engine}</span> ` +
+      `<span class="muted">样本 ${d.samples}（训练 ${d.train} / 测试 ${d.test}，${d.from} ~ ${d.to}）· ` +
+      `测试集准确率 <b>${d.accuracy}%</b>，多数类基线 ${d.baseline}% · 特征 ${d.features} 个</span>` +
+      `<br/><span class="muted">Top 特征：${top}</span>`;
+    $("#ml-sub").textContent = `预测 ${d.target} 下一期波动区间`;
+  }
+
   function bindAnalysis() {
     document.querySelectorAll("#view-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2919,6 +3023,7 @@
     bind();
     bindAnalysis();
     initUpdate();
+    initMl();
     // 心跳：桌面版据此判断窗口是否还开着（浏览器启动进程会立刻退出，不能当窗口生命周期用）
     const ping = () => fetch("/api/ping", { cache: "no-store" }).catch(() => {});
     ping();

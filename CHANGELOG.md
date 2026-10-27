@@ -2,6 +2,16 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)，规则见 [VERSIONING.md](VERSIONING.md)。
 
+## [1.1.0] - 2026-10-27
+
+### 关联分析 · LightGBM 概率预测
+
+- 输入端：用户选定的 N 个指标（第一个作为预测目标）在 t-1 及之前 T 个周期的日收益率
+- 输出端：目标指标下一期相对 t-1 的波动幅度落在各区间（默认 6 档，按训练集分位数划分）的概率
+- 模型：LightGBM 多分类（原生 API，不依赖 scikit-learn）；未安装时自动退回内置逻辑回归
+- 概率按训练集先验做 25% 收缩，避免树模型输出过度自信
+- 面板展示：各档概率柱状图、测试集准确率与多数类基线、Top 特征贡献
+
 ## [1.0.0] - 2026-10-27
 
 首个正式版。
@@ -48,3 +58,4 @@
 - 内置证监会行业映射与 PDF，首次启动自动播种，重装不丢
 
 [1.0.0]: https://github.com/uninterestingfun/Market-Monitor/releases/tag/v1.0.0
+[1.1.0]: https://github.com/uninterestingfun/Market-Monitor/releases/tag/v1.1.0
