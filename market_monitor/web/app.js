@@ -2810,6 +2810,24 @@
   /* ───────────────────── LightGBM 概率预测 ───────────────────── */
   const ml = { chart: null, bound: false, loading: false };
 
+
+  function mlWindowHint(days) {
+    const weeks = days / 5;
+    const months = days / 21;
+    const fmt = (v) => String(Number(v.toFixed(v >= 10 ? 0 : 1)));
+    const w = weeks >= 1 ? `≈ ${fmt(weeks)} 周` : "";
+    const m = months >= 1.2 ? ` · ${fmt(months)} 个月` : "";
+    return `${days} 个交易日 ${w}${m}`.trim();
+  }
+
+  function mlBucketSign(label) {
+    const nums = (label.match(/-?\d+(\.\d+)?/g) || []).map(Number);
+    if (!nums.length) return 0;
+    if (nums.every((n) => n < 0)) return -1;
+    if (nums.every((n) => n >= 0)) return 1;
+    return 0;
+  }
+
   function initMl() {
     const btn = $("#ml-run");
     if (!btn) return;
@@ -2819,6 +2837,14 @@
       $("#ml-window").addEventListener("keydown", (e) => {
         if (e.key === "Enter") runMl();
       });
+    }
+    const win = $("#ml-window");
+    if (win) {
+      win.addEventListener("input", () => {
+        const v = Math.max(5, Math.min(120, parseInt(win.value, 10) || 20));
+        $("#ml-window-hint").textContent = mlWindowHint(v);
+      });
+      $("#ml-window-hint").textContent = mlWindowHint(parseInt(win.value, 10) || 20);
     }
     updateMlTarget();
   }
@@ -2869,44 +2895,82 @@
     const labels = d.labels || [];
     const probs = d.probs || [];
     const maxIdx = probs.indexOf(Math.max(...probs));
+    const UP = "#f6465d";
+    const DOWN = "#2ebd85";
+    const MID = "#8b95a5";
+    const data = probs.map((v, i) => {
+      const sign = mlBucketSign(labels[i] || "");
+      const base = sign > 0 ? UP : sign < 0 ? DOWN : MID;
+      return {
+        value: v,
+        itemStyle: {
+          color: i === maxIdx ? base : `${base}59`,
+          borderColor: base,
+          borderWidth: i === maxIdx ? 0 : 1,
+          borderRadius: [4, 4, 0, 0],
+        },
+      };
+    });
     ml.chart.setOption({
       backgroundColor: "transparent",
-      grid: { left: 48, right: 16, top: 24, bottom: 30 },
+      grid: { left: 46, right: 18, top: 28, bottom: 34 },
       xAxis: {
         type: "category",
         data: labels,
         axisLine: { lineStyle: { color: "rgba(255,255,255,.12)" } },
-        axisLabel: { color: "#8b95a5", fontSize: 11, interval: 0, rotate: labels.length > 6 ? 20 : 0 },
+        axisTick: { show: false },
+        axisLabel: {
+          color: "#9aa4b2",
+          fontSize: 11,
+          interval: 0,
+          rotate: labels.length > 6 ? 18 : 0,
+          formatter: (v) => (mlBucketSign(v) > 0 ? `↑ ${v}` : mlBucketSign(v) < 0 ? `↓ ${v}` : v),
+        },
       },
       yAxis: {
         type: "value",
-        name: "概率 %",
-        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        name: "概率（%）",
+        nameTextStyle: { color: "#6b7280", fontSize: 10, padding: [0, 0, 0, -10] },
+        max: Math.min(100, Math.ceil(Math.max(...probs, 10) / 10) * 10 + 5),
         splitLine: { lineStyle: { color: "rgba(255,255,255,.06)" } },
-        axisLabel: { color: "#8b95a5", fontSize: 10 },
+        axisLabel: { color: "#8b95a5", fontSize: 10, formatter: "{value}%" },
       },
-      tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
+      tooltip: {
+        trigger: "axis",
+        formatter: (items) => {
+          const it = items[0];
+          return `${it.name}<br/>概率 <b>${it.value}%</b>`;
+        },
+      },
       series: [{
         type: "bar",
-        data: probs.map((v, i) => ({
-          value: v,
-          itemStyle: { color: i === maxIdx ? "#5eead4" : "rgba(94,234,212,.35)", borderRadius: [4, 4, 0, 0] },
-        })),
-        barWidth: "52%",
+        data,
+        barWidth: "54%",
         label: { show: true, position: "top", color: "#c7d2e0", fontSize: 11, formatter: "{c}%" },
       }],
     }, true);
     ml.chart.resize();
 
-    const engine = d.engine === "lightgbm" ? "LightGBM" : "内置逻辑回归（未安装 LightGBM）";
-    const top = (d.importance || []).slice(0, 5)
-      .map((x) => `${x.name} ${x.gain}%`).join(" · ") || "—";
+    const isLgb = d.engine === "lightgbm";
+    const engineChip = isLgb
+      ? `<span class="chip ok">LightGBM ${d.engine_error ? "" : ""}</span>`
+      : `<span class="chip warn" title="${d.engine_error || ""}">内置逻辑回归</span>`;
+    const reason = !isLgb && d.engine_error
+      ? `<br/><span class="muted">LightGBM 未加载：${d.engine_error}</span>` : "";
+    const delta = (d.accuracy - d.baseline).toFixed(1);
+    const deltaCls = d.accuracy >= d.baseline ? "up" : "down";
+    const top = (d.importance || []).slice(0, 5).map((x) => `${x.name}（${x.gain}%）`).join("、");
+    const months = (d.samples / 21).toFixed(0);
+
     $("#ml-meta").innerHTML =
-      `<span class="chip">${engine}</span> ` +
-      `<span class="muted">样本 ${d.samples}（训练 ${d.train} / 测试 ${d.test}，${d.from} ~ ${d.to}）· ` +
-      `测试集准确率 <b>${d.accuracy}%</b>，多数类基线 ${d.baseline}% · 特征 ${d.features} 个</span>` +
-      `<br/><span class="muted">Top 特征：${top}</span>`;
-    $("#ml-sub").textContent = `预测 ${d.target} 下一期波动区间`;
+      `${engineChip} ` +
+      `<span class="muted">样本 <b>${d.samples}</b> 个交易日（约 ${months} 个月，${d.from} ~ ${d.to}）· ` +
+      `训练 ${d.train} / 测试 ${d.test} · 特征 ${d.features} 个（${d.assets.length} 个指标 × 窗口 ${d.window}）</span>` +
+      `<br/><span class="muted">测试集准确率 <b>${d.accuracy}%</b>，多数类基线 ${d.baseline}%，` +
+      `高出 <b class="${deltaCls}">${delta} 个百分点</b>；概率已按训练集分布做 25% 收缩。</span>` +
+      (top ? `<br/><span class="muted">贡献最大的特征：${top}</span>` : "") +
+      reason;
+    $("#ml-sub").textContent = `预测 ${anName(d.target)} 下一期涨跌区间`;
   }
 
   function bindAnalysis() {

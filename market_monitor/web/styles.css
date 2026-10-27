@@ -1005,3 +1005,23 @@ footer {
 .ml-chart { height: 240px; }
 .ml-meta { font-size: 11.5px; line-height: 1.7; color: var(--muted); margin-top: 8px; }
 .ml-meta .muted { color: var(--faint); }
+
+/* LightGBM 面板：可读性 */
+.ml-desc { font-size: 12px; line-height: 1.8; color: var(--muted); margin: 6px 0 10px; }
+.ml-desc b { color: var(--text); font-weight: 500; }
+.ml-field { display: flex; align-items: center; gap: 6px; }
+.ml-hint { font-size: 11px; color: var(--faint); font-style: normal; }
+.ml-legend { display: flex; gap: 14px; align-items: center; font-size: 11px; color: var(--faint); margin: 4px 0 2px; }
+.ml-legend .up { color: var(--up); }
+.ml-legend .down { color: var(--down); }
+.ml-meta .chip.ok { background: rgba(94,234,212,.12); color: var(--accent); }
+.ml-meta .chip.warn { background: rgba(250,204,21,.14); color: #facc15; }
+.ml-meta b.up { color: var(--up); }
+.ml-meta b.down { color: var(--down); }
+.ml-help { margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.ml-help summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.ml-help summary:hover { color: var(--accent); }
+.ml-help dl { margin: 10px 0 0; display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; font-size: 11.5px; line-height: 1.7; }
+.ml-help dt { color: var(--text); font-weight: 500; }
+.ml-help dd { margin: 0; color: var(--muted); }
+.ml-controls select { min-width: 86px; }

@@ -326,22 +326,56 @@
         <h3>LightGBM 概率预测</h3>
         <span class="chip" id="ml-sub">用左侧已选指标预测下一期波动区间</span>
       </div>
+      <p class="ml-desc">
+        取每个指标 <b>t-1 及之前 T 个交易日</b>的日收益率作为特征，预测<b>目标指标</b>在 t 时刻相对 t-1 的涨跌幅落在各区间的概率。
+        第一个选中的指标是预测目标，其余指标作为输入特征。
+      </p>
       <div class="ml-controls">
-        <span class="opt-label">预测目标</span>
-        <span class="ml-target" id="ml-target">未选择</span>
-        <span class="opt-label">历史窗口 T</span>
-        <input id="ml-window" type="number" min="5" max="120" step="1" value="20" />
-        <span class="opt-label">区间数</span>
-        <select id="ml-buckets">
-          <option value="4">4 档</option>
-          <option value="6" selected>6 档</option>
-          <option value="8">8 档</option>
-          <option value="10">10 档</option>
-        </select>
+        <label class="ml-field">
+          <span class="opt-label">预测目标</span>
+          <span class="ml-target" id="ml-target">未选择</span>
+        </label>
+        <label class="ml-field">
+          <span class="opt-label">历史窗口 T</span>
+          <input id="ml-window" type="number" min="5" max="120" step="1" value="20" />
+          <em class="ml-hint" id="ml-window-hint">20 个交易日 ≈ 4 周</em>
+        </label>
+        <label class="ml-field">
+          <span class="opt-label">区间数</span>
+          <select id="ml-buckets">
+            <option value="4">4 档</option>
+            <option value="6" selected>6 档</option>
+            <option value="8">8 档</option>
+            <option value="10">10 档</option>
+          </select>
+          <em class="ml-hint">按分位数切分，各档样本量接近</em>
+        </label>
         <button class="btn small" id="ml-run">训练并预测</button>
+      </div>
+      <div class="ml-legend">
+        <span class="lg up">■ 上涨区间</span>
+        <span class="lg down">■ 下跌区间</span>
+        <span class="lg muted">柱顶数字为该区间概率</span>
       </div>
       <div id="ml-chart" class="chart ml-chart"></div>
       <div class="ml-meta" id="ml-meta">第一个选中的指标作为预测目标，其余指标作为输入特征。</div>
+      <details class="ml-help">
+        <summary>参数说明</summary>
+        <dl>
+          <dt>预测目标</dt>
+          <dd>左侧第一个勾选的指标；模型只预测它，其余指标作为特征输入。</dd>
+          <dt>历史窗口 T</dt>
+          <dd>用过去多少个交易日的数据。20 个交易日约 4 周，60 个约 3 个月。窗口越长越平滑，但反应越滞后。</dd>
+          <dt>区间数</dt>
+          <dd>把下一期涨跌幅分成几档。分档按训练集分位数切，保证每档样本量接近，避免极端档位样本太少。</dd>
+          <dt>训练 / 测试</dt>
+          <dd>按时间顺序：前 80% 训练、后 20% 测试，不随机打乱，避免用未来数据训练。</dd>
+          <dt>准确率 / 基线</dt>
+          <dd>准确率是测试集上猜中档位的比例；基线是"永远猜样本最多那一档"的准确率。只有明显高于基线才有参考价值。</dd>
+          <dt>先验收缩</dt>
+          <dd>模型输出与训练集历史分布按 75 : 25 混合，抑制树模型过度自信（避免某一档动辄 80%）。</dd>
+        </dl>
+      </details>
     </section>
 
     <section class="analysis-lower">

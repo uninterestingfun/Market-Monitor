@@ -137,14 +137,12 @@ def _labels(edges: np.ndarray) -> List[str]:
     bounds = [-np.inf, *edges.tolist(), np.inf]
     out = []
     for lo, hi in zip(bounds[:-1], bounds[1:]):
-        lo_s = "≤" if not np.isfinite(lo) else f"{lo * 100:.1f}%"
-        hi_s = "≥" if not np.isfinite(hi) else f"{hi * 100:.1f}%"
         if not np.isfinite(lo):
-            out.append(f"<{hi * 100:.1f}%")
+            out.append(f"低于 {hi * 100:.2f}%")
         elif not np.isfinite(hi):
-            out.append(f">={lo * 100:.1f}%")
+            out.append(f"高于 {lo * 100:.2f}%")
         else:
-            out.append(f"{lo * 100:.1f}%~{hi * 100:.1f}%")
+            out.append(f"{lo * 100:.2f}% ~ {hi * 100:.2f}%")
     return out
 
 
@@ -210,6 +208,7 @@ def predict(
     X_test, y_test = X[split:], classes[split:]
 
     engine = "lightgbm"
+    engine_error = ""
     importance: List[Dict[str, Any]] = []
     proba: Optional[np.ndarray] = None
     acc = 0.0
@@ -246,8 +245,9 @@ def predict(
             {"name": ds["features"][i], "gain": round(float(gains[i]) / total * 100, 2)}
             for i in top
         ]
-    except Exception:
+    except Exception as exc:
         engine = "logreg"
+        engine_error = str(exc).splitlines()[0][:120] if str(exc) else type(exc).__name__
         W, stats = _logreg_fallback(X_train, y_train, k)
         proba = _predict_logreg(W, stats, X[-1:])[0]
         if len(X_test):
@@ -265,6 +265,7 @@ def predict(
     result = {
         "ok": True,
         "engine": engine,
+        "engine_error": engine_error,
         "target": asset_ids[0],
         "assets": list(asset_ids),
         "window": ds["window"],

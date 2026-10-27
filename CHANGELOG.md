@@ -2,6 +2,15 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)，规则见 [VERSIONING.md](VERSIONING.md)。
 
+## [1.1.1] - 2026-10-28
+
+### 修复
+
+- LightGBM 面板可读性：新增面板说明、参数说明折叠区、涨跌配色图例
+- 历史窗口 T 用「交易日 + 约几周/几个月」表述
+- 分档标签改为「低于 x% / x% ~ y% / 高于 x%」，并按涨跌染色（红涨绿跌）
+- 引擎标识与准确率对比更醒目，LightGBM 加载失败时显示具体原因
+
 ## [1.1.0] - 2026-10-27
 
 ### 关联分析 · LightGBM 概率预测
