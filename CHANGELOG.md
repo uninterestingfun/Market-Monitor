@@ -43,7 +43,8 @@
 
 - Windows 安装包（单文件 Setup，无需管理员，安装在用户目录）
 - 数据全部落在安装目录旁的 `data/`
-- 应用内检查更新：多镜像下载（ghfast / gh-proxy / ghproxy / 直连 / jsDelivr）、断点续传、静默覆盖安装
+- 应用内检查更新：**按版本号判断**（`version.json`），提交 SHA 仅用于展示；
+  多镜像下载（ghfast / gh-proxy / ghproxy / 直连 / jsDelivr）、断点续传、静默覆盖安装
 - 内置证监会行业映射与 PDF，首次启动自动播种，重装不丢
 
 [1.0.0]: https://github.com/uninterestingfun/Market-Monitor/releases/tag/v1.0.0

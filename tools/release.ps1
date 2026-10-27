@@ -14,6 +14,15 @@ if (-not (Test-Path $setup)) {
     exit 1
 }
 
+# 版本号单一来源：market_monitor/version.py
+$ver = ""
+try { $ver = (Select-String -Path "market_monitor\version.py" -Pattern '^__version__ = "(.+)"').Matches[0].Groups[1].Value } catch { $ver = "0.0.0" }
+$sha = ""
+try { $sha = (git rev-parse --short HEAD).Trim() } catch { $sha = "" }
+$vjson = "{`n  `"version`": `"$ver`",`n  `"date`": `"$(Get-Date -Format yyyy-MM-dd)`",`n  `"sha`": `"$sha`"`n}`n"
+[System.IO.File]::WriteAllText("$PWD\version.json", $vjson, [System.Text.UTF8Encoding]::new($false))
+Write-Host "[release] version.json -> v$ver ($sha)" -ForegroundColor Cyan
+
 New-Item -ItemType Directory -Force -Path "release" | Out-Null
 Copy-Item $setup "release\MarketMonitor-Setup.exe" -Force
 
@@ -36,7 +45,7 @@ if (Test-Path $readme) {
         if ($line -match '^\|\s*`?MarketMonitor-Setup\.exe') {
             '| `MarketMonitor-Setup.exe` | Windows 安装包（{0} MB） | `{1}` |' -f $size, $hash
         } elseif ($line -match '^版本：') {
-            '版本：1.0.0 · 构建于 ' + (Get-Date -Format "yyyy-MM-dd")
+            "版本：$ver · 构建于 " + (Get-Date -Format "yyyy-MM-dd")
         } else {
             $line
         }

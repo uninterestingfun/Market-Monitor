@@ -10,7 +10,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -27,6 +27,62 @@ MIRRORS = [
     "",
 ]
 CDN_SETUP = f"https://cdn.jsdelivr.net/gh/{REPO}@main/release/MarketMonitor-Setup.exe"
+
+
+VERSION_JSON = f"https://raw.githubusercontent.com/{REPO}/main/version.json"
+VERSION_PY_API = f"https://api.github.com/repos/{REPO}/contents/market_monitor/version.py"
+
+
+def _parse_version(text: str) -> Tuple[int, int, int, int]:
+    """(major, minor, patch, 预发布权重)：预发布为 0，正式版为 1。"""
+    core = (text or "").split("+")[0].strip()
+    pre = ""
+    if "-" in core:
+        core, pre = core.split("-", 1)
+    nums = []
+    for part in core.split(".")[:3]:
+        digits = "".join(ch for ch in part if ch.isdigit())
+        nums.append(int(digits) if digits else 0)
+    while len(nums) < 3:
+        nums.append(0)
+    return (nums[0], nums[1], nums[2], 0 if pre else 1)
+
+
+def compare_versions(a: str, b: str) -> int:
+    """>0 表示 a 比 b 新。"""
+    pa, pb = _parse_version(a), _parse_version(b)
+    if pa != pb:
+        return 1 if pa > pb else -1
+    return 0
+
+
+def remote_version() -> Tuple[str, str]:
+    """读取远端版本号：优先 version.json，回退解析 version.py。"""
+    urls = [prefix + VERSION_JSON for prefix in MIRRORS]
+    urls.append(f"https://cdn.jsdelivr.net/gh/{REPO}@main/version.json")
+    for url in urls:
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=(6, 12))
+            if r.status_code == 200:
+                data = r.json()
+                ver = str(data.get("version") or "").strip()
+                if ver:
+                    return ver, str(data.get("date") or "")
+        except Exception:
+            continue
+    try:
+        import base64
+        import re
+
+        r = requests.get(VERSION_PY_API, headers=HEADERS, timeout=(8, 18))
+        r.raise_for_status()
+        content = base64.b64decode(r.json().get("content") or "").decode("utf-8", "replace")
+        m = re.search(r'__version__\s*=\s*"([^"]+)"', content)
+        if m:
+            return m.group(1), ""
+    except Exception:
+        pass
+    return "", ""
 
 
 def download_urls() -> List[str]:
@@ -89,37 +145,52 @@ def local_info() -> Dict[str, Any]:
 
 
 def check() -> Dict[str, Any]:
+    """按版本号判断是否有新版本，附加 commit 信息用于展示。"""
     local = local_info()
+    warnings: List[str] = []
+
+    latest_version, latest_date = remote_version()
+    latest_sha = ""
+    latest_message = ""
     try:
-        last: Optional[Exception] = None
-        j = None
-        for _ in range(3):
-            try:
-                r = requests.get(API_COMMIT, headers=HEADERS, timeout=(10, 25))
-                r.raise_for_status()
-                j = r.json()
-                break
-            except Exception as exc:
-                last = exc
-                time.sleep(1.5)
-        if j is None:
-            raise last or RuntimeError("GitHub API 不可达")
+        r = requests.get(API_COMMIT, headers=HEADERS, timeout=(10, 25))
+        r.raise_for_status()
+        j = r.json()
         latest_sha = (j.get("sha") or "")[:7]
         commit = j.get("commit") or {}
-        date = (commit.get("committer") or {}).get("date") or ""
-        message = (commit.get("message") or "").splitlines()[0][:80]
-        up_to_date = bool(local["sha"]) and local["sha"] == latest_sha
-        return {
-            "ok": True,
-            "local": local,
-            "latest_sha": latest_sha,
-            "latest_date": date,
-            "latest_message": message,
-            "up_to_date": up_to_date,
-            "repo": f"https://github.com/{REPO}",
-        }
+        latest_date = latest_date or (commit.get("committer") or {}).get("date") or ""
+        latest_message = (commit.get("message") or "").splitlines()[0][:80]
     except Exception as exc:
-        return {"ok": False, "error": str(exc)[:120], "local": local, "repo": f"https://github.com/{REPO}"}
+        if not latest_version:
+            return {"ok": False, "error": f"无法获取远端版本：{str(exc)[:80]}",
+                    "local": local, "repo": f"https://github.com/{REPO}"}
+        warnings.append("commit 信息获取失败，仅按版本号判断")
+
+    needs_update = False
+    if latest_version:
+        needs_update = compare_versions(latest_version, local["version"]) > 0
+    elif latest_sha and local["sha"]:
+        # 没有 version.json 时回退到 SHA 比较
+        needs_update = latest_sha != local["sha"]
+        latest_version = local["version"]
+    else:
+        return {"ok": False, "error": "远端没有可用的版本信息", "local": local,
+                "repo": f"https://github.com/{REPO}"}
+
+    return {
+        "ok": True,
+        "local": local,
+        "local_version": local["version"],
+        "latest_version": latest_version,
+        "latest_sha": latest_sha,
+        "latest_date": latest_date,
+        "latest_message": latest_message,
+        "up_to_date": not needs_update,
+        "needs_update": needs_update,
+        "compare": "version",
+        "warnings": warnings,
+        "repo": f"https://github.com/{REPO}",
+    }
 
 
 def status() -> Dict[str, Any]:

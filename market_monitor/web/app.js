@@ -2737,14 +2737,18 @@
       return;
     }
     if (d.up_to_date) {
+      const ver = d.latest_version || d.local_version || "";
       $("#up-body").innerHTML =
-        `已是最新版本 <b>${d.latest_sha}</b><br/><span class="muted">${d.latest_date || ""} · ${d.latest_message || ""}</span>`;
+        `已是最新版本 <b>v${ver}</b>` +
+        (d.latest_sha ? ` <span class="muted">(${d.latest_sha})</span>` : "") +
+        `<br/><span class="muted">${d.latest_date || ""} ${d.latest_message || ""}</span>`;
       return;
     }
     $("#up-body").innerHTML =
-      `发现新版本 <b>${d.latest_sha}</b><br/>` +
-      `<span class="muted">${d.latest_date || ""} · ${d.latest_message || ""}</span><br/>` +
-      `当前 ${local.sha || "未知"} → 最新 ${d.latest_sha}` +
+      `发现新版本 <b>v${d.latest_version}</b>` +
+      (d.latest_sha ? ` <span class="muted">(${d.latest_sha})</span>` : "") +
+      `<br/><span class="muted">${d.latest_date || ""} ${d.latest_message || ""}</span><br/>` +
+      `当前 v${d.local_version || local.version} → 最新 v${d.latest_version}` +
       (local.mode === "source" ? "<br/><span class=\"muted\">源码模式将执行 git pull</span>" : "");
     $("#up-download").hidden = false;
   }
