@@ -2,6 +2,16 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)，规则见 [VERSIONING.md](VERSIONING.md)。
 
+## [1.4.0] - 2026-10-28
+
+### 日报每日自动生成并推送
+
+- 新增命令 `python run.py report [--push] [--wait 秒]`：生成当日报告，保存到 `reports/YYYY-MM-DD.md` 与 `data/reports/`
+- `--push` 会自动 `git add reports` → 提交 → 推送，提交信息 `report: YYYY-MM-DD 每日报告`
+- 新增 `tools\report-job.bat`：带日志（`data\report-job.log`）的任务脚本，设置 `GIT_SSH` 与 UTF-8
+- 新增 `tools\install-report-task.bat`：一键注册 Windows 计划任务（默认每天 16:30，A 股收盘后）
+- 生成前会等待行情到位（最多 `--wait` 秒，默认 120），避免推上空报告
+
 ## [1.3.0] - 2026-10-28
 
 ### 每日报告

@@ -244,6 +244,46 @@ def cmd_pdf_import(args: argparse.Namespace) -> None:
     print(f"  覆盖 {stat['stocks']} 只股票 · {stat['level1']} 个门类 · {stat['level2']} 个二级 · {stat['level3']} 个三级")
 
 
+
+def cmd_report(args: argparse.Namespace) -> None:
+    _banner()
+    from market_monitor import report_job
+    from market_monitor.service import MarketService
+    from market_monitor.store import Store
+
+    store = Store(os.path.join(args.dir, "market.db"))
+    service = MarketService(store)
+    started = False
+    if hasattr(service, "start"):
+        service.start()
+        started = True
+    print("  正在收集行情并生成日报…")
+    try:
+        payload = report_job.generate(service, timeout=args.wait)
+    finally:
+        if started:
+            try:
+                service.stop()
+            except Exception:
+                pass
+    if not payload.get("ok"):
+        print(f"  [失败] {payload.get('error')}")
+        sys.exit(1)
+    paths = report_job.save(payload, root=os.path.dirname(os.path.abspath(__file__)))
+    print(f"  日期: {payload['date']} · 章节 {len(payload.get('sections') or [])} 个")
+    print(f"  已保存: {paths['repo']}")
+    print(f"  本地归档: {paths['local']}")
+    if args.push:
+        result = report_job.push(root=os.path.dirname(os.path.abspath(__file__)))
+        if result.get("ok") and result.get("pushed"):
+            print("  已推送到远端仓库")
+        elif result.get("ok"):
+            print(f"  未推送：{result.get('detail')}")
+        else:
+            print(f"  [推送失败] {result.get('detail')}")
+            sys.exit(1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="市场监测工具")
     sub = parser.add_subparsers(dest="command")
@@ -283,6 +323,12 @@ def main() -> None:
     p_pdf.add_argument("--pdf", default=os.path.join("data", "中上市行业分类.pdf"))
     p_pdf.add_argument("--dir", default="data")
     p_pdf.set_defaults(func=cmd_pdf_import)
+
+    p_report = sub.add_parser("report", help="生成每日报告（可推送）")
+    p_report.add_argument("--dir", default="data")
+    p_report.add_argument("--push", action="store_true", help="生成后提交并推送 reports/")
+    p_report.add_argument("--wait", type=float, default=120.0, help="等待行情的秒数")
+    p_report.set_defaults(func=cmd_report)
 
     p_list = sub.add_parser("list", help="列出标的")
     p_list.set_defaults(func=cmd_list)

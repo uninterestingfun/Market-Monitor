@@ -52,6 +52,27 @@
 - **下载 .md**：保存为 `资本市场日报-YYYY-MM-DD.md`；
 - 全部数据来自当日实时行情与本地历史，**不含主观判断**；数据缺失的小节会自动省略。
 
+### 日报每日自动推送
+
+报告会按天归档到仓库的 `reports/` 目录，并在每天收盘后自动推送到远端。
+
+```bash
+python run.py report                 # 生成当天报告（保存到 reports/ 与 data/reports/）
+python run.py report --push          # 生成并提交推送到远端
+python run.py report --wait 150      # 等待行情的秒数（默认 120）
+```
+
+**注册每日任务**（只需一次）：
+
+```bash
+tools\install-report-task.bat           # 每天 16:30
+tools\install-report-task.bat 15:30     # 自定义时间
+```
+
+任务脚本 `tools\report-job.bat` 会设置 `GIT_SSH`、UTF-8，并把输出写入 `data\report-job.log`。可用 `schtasks /Run /TN "MarketMonitor-DailyReport"` 手动触发一次。
+
+> 只提交 `reports/` 目录，不会把本地改动一并带上去；没有新内容时会自动跳过推送。
+
 ## 内置使用手册
 
 安装包自带 18 页 PDF 手册，工具栏点「使用手册」（书本图标）或页脚「使用手册 PDF」即可打开，首次启动会复制一份到 `data\`。
