@@ -31,6 +31,7 @@
     <button data-view="bonds">债券</button>
     <button data-view="gold">黄金</button>
     <button data-view="analysis">关联分析</button>
+    <button data-view="report">日报</button>
   </nav>
 
   <div class="sessions" id="sessions" aria-label="市场状态"></div>
@@ -261,6 +262,27 @@
       <div class="gold-body">
         <div class="gold-table-wrap"><table class="macro-table" id="gold-table"></table></div>
         <div id="gold-chart" class="gold-chart"></div>
+      </div>
+    </section>
+  </div>
+
+
+  <div id="view-report" hidden>
+    <section class="panel report-panel">
+      <div class="chart-head">
+        <div class="chart-title">
+          <h2 id="rp-title">资本市场日报</h2>
+          <span class="chip" id="rp-sub">生成中…</span>
+        </div>
+        <div class="report-actions">
+          <button class="btn ghost small" id="rp-reload">重新生成</button>
+          <button class="btn ghost small" id="rp-copy">复制全文</button>
+          <button class="btn ghost small" id="rp-save">下载 .md</button>
+        </div>
+      </div>
+      <article class="report-body" id="rp-body">正在汇总今日行情…</article>
+      <div class="chart-foot">
+        <span id="rp-foot">数据来自公开渠道，由程序自动汇总，仅供参考</span>
       </div>
     </section>
   </div>

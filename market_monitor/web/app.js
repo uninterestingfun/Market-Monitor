@@ -1697,6 +1697,72 @@
     wrap.classList.toggle("single", visible <= 1);
   }
 
+
+  /* ───────────────────────── 每日报告 ───────────────────────── */
+  const rp = { data: null, bound: false, loading: false };
+
+  function initReport() {
+    if (rp.bound) return;
+    rp.bound = true;
+    $("#rp-reload").addEventListener("click", () => loadReport(true));
+    $("#rp-copy").addEventListener("click", async () => {
+      if (!rp.data) return;
+      try {
+        await navigator.clipboard.writeText(rp.data.text);
+        toast("已复制到剪贴板");
+      } catch (_) {
+        toast("复制失败，请手动选择文本");
+      }
+    });
+    $("#rp-save").addEventListener("click", () => {
+      if (!rp.data) return;
+      const blob = new Blob([rp.data.text], { type: "text/markdown;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `资本市场日报-${rp.data.date}.md`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  }
+
+  async function loadReport(force) {
+    if (rp.loading) return;
+    if (rp.data && !force) {
+      renderReport(rp.data);
+      return;
+    }
+    rp.loading = true;
+    $("#rp-body").textContent = "正在汇总今日行情…";
+    $("#rp-sub").textContent = "生成中…";
+    try {
+      const d = await (await fetch("/api/report", { cache: "no-store" })).json();
+      if (!d.ok) {
+        $("#rp-body").textContent = d.error || "报告生成失败";
+        $("#rp-sub").textContent = "生成失败";
+        return;
+      }
+      rp.data = d;
+      renderReport(d);
+    } catch (err) {
+      $("#rp-body").textContent = "报告生成失败：" + err.message;
+    } finally {
+      rp.loading = false;
+    }
+  }
+
+  function renderReport(d) {
+    $("#rp-title").textContent = d.title;
+    $("#rp-sub").textContent = `${d.date} · ${d.generated_at} 生成`;
+    const body = (d.sections || []).map((sec) => {
+      const paras = (sec.p || []).map((x) => `<p>${x}</p>`).join("");
+      return `<h3>${sec.h}</h3>${paras}`;
+    }).join("");
+    $("#rp-body").innerHTML = `<p class="rp-lead">${d.lead}</p>` + body;
+    const c = d.coverage || {};
+    $("#rp-foot").textContent =
+      `覆盖：A股 ${c.cn || 0} 项 · 港股 ${c.hk || 0} 项 · 美股 ${c.us || 0} 项 · 债券 ${c.bonds || 0} 项 · 商品 ${c.commodity || 0} 项 · 汇率 ${c.fx || 0} 项 · 仅供参考`;
+  }
+
   function switchView(name) {
     document.querySelectorAll("#view-tabs button").forEach((b) => {
       b.classList.toggle("active", b.dataset.view === name);
@@ -1741,6 +1807,8 @@
     } else if (state.chart) {
       state.chart.resize();
     }
+    $("#view-report").hidden = name !== "report";
+    if (name === "report") { initReport(); loadReport(); }
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */

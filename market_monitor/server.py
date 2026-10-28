@@ -95,6 +95,9 @@ class Handler(BaseHTTPRequestHandler):
             self.service.farewell()
             self._json({"ok": True})
             return
+        if path == "/api/report":
+            self._json(self.service.daily_report())
+            return
         if path == "/api/manual":
             target = manual.resolve(self.service.data_dir)
             if not target:
