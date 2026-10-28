@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>市场监测 Market Monitor · 使用手册</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0; font-family: "Microsoft YaHei", "PingFang SC", "Source Han Sans SC", sans-serif;
+    font-size: 10.5pt; line-height: 1.75; color: #1f2430; background: #fff;
+  }
+  h1 { font-size: 26pt; margin: 0 0 4mm; letter-spacing: .5px; }
+  h2 { font-size: 16pt; margin: 9mm 0 3mm; padding-bottom: 2mm; border-bottom: 2px solid #0ea5a4; color: #0f172a; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin: 6mm 0 2mm; color: #0f766e; page-break-after: avoid; }
+  h4 { font-size: 11pt; margin: 4mm 0 1.5mm; color: #334155; page-break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin: 1mm 0; }
+  code { font-family: Consolas, "Courier New", monospace; background: #f1f5f9; padding: .5mm 1.5mm; border-radius: 2px; font-size: 9.5pt; color: #0f766e; }
+  .formula { background: #f8fafc; border-left: 3px solid #0ea5a4; padding: 2.5mm 3mm; margin: 2mm 0 3mm; font-family: Consolas, monospace; font-size: 9.5pt; color: #0f172a; line-height: 1.9; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #dbe3ec; padding: 1.8mm 2.2mm; text-align: left; vertical-align: top; }
+  th { background: #eef7f7; color: #0f172a; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafcfd; }
+  .page-break { page-break-before: always; }
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+  .cover .badge { font-size: 11pt; color: #0ea5a4; letter-spacing: 6px; margin-bottom: 6mm; }
+  .cover .sub { font-size: 13pt; color: #475569; margin-top: 4mm; }
+  .cover .meta { margin-top: 30mm; font-size: 10pt; color: #64748b; line-height: 2; }
+  .toc { margin-top: 4mm; }
+  .toc ol { list-style: none; padding-left: 0; counter-reset: toc; }
+  .toc > ol > li { counter-increment: toc; margin: 2.5mm 0; font-size: 11pt; color: #0f172a; }
+  .toc > ol > li::before { content: counter(toc) ". "; color: #0ea5a4; font-weight: 600; }
+  .toc .sub-items { font-size: 9.5pt; color: #64748b; margin: 1mm 0 0 6mm; }
+  .callout { border: 1px solid #cdebe9; background: #f0fdfa; padding: 3mm 3.5mm; border-radius: 3px; margin: 3mm 0; font-size: 10pt; }
+  .callout.warn { border-color: #fde68a; background: #fffbeb; }
+  .callout b { color: #0f766e; }
+  .callout.warn b { color: #b45309; }
+  .kbd { display: inline-block; border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: 3px; padding: 0 1.5mm; font-size: 9pt; font-family: Consolas, monospace; background: #f8fafc; }
+  .muted { color: #64748b; }
+  .tag-up { color: #dc2626; font-weight: 600; }
+  .tag-down { color: #059669; font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  .card { border: 1px solid #e2e8f0; border-radius: 3px; padding: 3mm; }
+  .card h4 { margin-top: 0; }
+  .step { display: flex; gap: 3mm; margin: 2mm 0; }
+  .step .n { flex: 0 0 7mm; height: 7mm; border-radius: 50%; background: #0ea5a4; color: #fff; text-align: center; line-height: 7mm; font-size: 9.5pt; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<section class="cover">
+  <div class="badge">MARKET MONITOR</div>
+  <h1>市场监测 使用手册</h1>
+  <div class="sub">行情 · 板块 · 宏观 · 债券 · 黄金 · 关联分析</div>
+  <div class="sub" style="font-size:10.5pt;color:#64748b;">指标定义 · 计算方法 · 功能导览 · 上手路径</div>
+  <div class="meta">
+    版本 1.2.0<br />
+    适用平台 Windows 10 / 11<br />
+    2026 年 10 月
+  </div>
+</section>
+
+<!-- ============ 目录 ============ -->
+<section class="page-break">
+  <h2>目录</h2>
+  <div class="toc">
+    <ol>
+      <li>五分钟上手
+        <div class="sub-items">打开软件 · 认识界面 · 三个最常见的用法</div>
+      </li>
+      <li>界面导览：每个按钮做什么
+        <div class="sub-items">顶部导航 · 工具栏 · 行情页 · 板块页 · 宏观页 · 债券页 · 黄金页 · 关联分析页</div>
+      </li>
+      <li>指标字典：定义、算法与作用
+        <div class="sub-items">行情类 · 关联类 · 资金流类 · LightGBM 概率预测 · 宏观类 · 债券类 · 黄金类 · 板块类</div>
+      </li>
+      <li>数据来源与更新频率</li>
+      <li>本地数据、导出与备份</li>
+      <li>软件更新与版本规则</li>
+      <li>常见问题</li>
+      <li>附录：单位、币种与快捷键</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 1 快速上手 ============ -->
+<section class="page-break">
+  <h2>1 五分钟上手</h2>
+
+  <h3>1.1 打开软件</h3>
+  <p>双击桌面快捷方式「市场监测」。程序会在本机启动一个本地服务并自动打开窗口，首次启动需要 3~10 秒拉取行情。</p>
+  <div class="callout">
+    <b>不需要联网账号、不需要管理员权限。</b>所有数据保存在程序目录的 <code>data\</code> 下；关掉窗口程序即退出，下次打开继续用本地历史。
+  </div>
+
+  <h3>1.2 界面的四个区域</h3>
+  <table>
+    <tr><th style="width:22%">区域</th><th style="width:30%">位置</th><th>作用</th></tr>
+    <tr><td>顶部导航</td><td>左上角</td><td>切换六大视图：行情 / 板块 / 宏观 / 债券 / 黄金 / 关联分析</td></tr>
+    <tr><td>市场状态灯</td><td>导航右侧</td><td>显示 A 股、港股、美股、ETF、期货、利率、汇率当前是「交易中 / 休市 / 已收盘」</td></tr>
+    <tr><td>工具栏</td><td>右上角</td><td>搜索标的、刷新频率、立即刷新、检查更新、下载历史</td></tr>
+    <tr><td>内容区</td><td>主体</td><td>随导航切换；顶部是主要图表，底部是分组卡片</td></tr>
+  </table>
+
+  <h3>1.3 三个最常见用法</h3>
+
+  <h4>用法一：看一个标的的现状</h4>
+  <div class="step"><div class="n">1</div><div>在右上角搜索框输入名称或代码（如 <code>贵州茅台</code> 或 <code>600519</code>），回车。</div></div>
+  <div class="step"><div class="n">2</div><div>主图切到该标的，默认显示「日线」，可点上方「分时 / 资金流」切换。</div></div>
+  <div class="step"><div class="n">3</div><div>右侧「详情」面板给出最新价、涨跌幅、今开/最高/最低、成交量、成交额、更新时间与数据源。</div></div>
+  <div class="step"><div class="n">4</div><div>下方「1W / 1M / 3M / 6M / 1Y / 3Y / ALL」切换时间跨度；鼠标滚轮可缩放日线。</div></div>
+
+  <h4>用法二：看今天哪个行业在涨</h4>
+  <div class="step"><div class="n">1</div><div>点导航「板块」。</div></div>
+  <div class="step"><div class="n">2</div><div>右上选择口径：「新浪行业」（49 个行业，金融拆成 4 类）或「证监会」（5521 只股票，门类 → 次类 → 大类）。</div></div>
+  <div class="step"><div class="n">3</div><div>左侧点行业名 → 右侧显示该行业前 50 只个股的树图：<b>方块面积 = 总市值，颜色 = 涨跌幅</b>。</div></div>
+  <div class="step"><div class="n">4</div><div>点任意方块 → 下钻到个股（分时、日线、资金流、历史区间），左上「返回板块」回到热力图。</div></div>
+
+  <h4>用法三：判断两个标的是否同涨同跌</h4>
+  <div class="step"><div class="n">1</div><div>点导航「关联分析」。</div></div>
+  <div class="step"><div class="n">2</div><div>左侧勾选 2~8 个标的（可搜索）；上方选择「滚动窗口」（20 / 60 / 120 日）与「观察区间」（1Y / 2Y / 3Y / ALL）。</div></div>
+  <div class="step"><div class="n">3</div><div>右侧曲线即时算出 6 个相关性指标 + 综合关联指数，下方卡片给出最新值与「基本不相关 / 弱相关 / 中等相关 / 强相关」判定。</div></div>
+  <div class="step"><div class="n">4</div><div>在同一页下方，可用「LightGBM 概率预测」预测第一个标的下一期的涨跌区间概率。</div></div>
+</section>
+
+<!-- ============ 2 界面导览 ============ -->
+<section class="page-break">
+  <h2>2 界面导览：每个按钮做什么</h2>
+
+  <h3>2.1 顶部导航</h3>
+  <table>
+    <tr><th style="width:16%">按钮</th><th>说明</th></tr>
+    <tr><td>行情</td><td>默认视图。主图 + 六个常用标的卡片（上证、恒生、纳指、标普、美债 10Y、美元指数），下方按 A股 / 港股 / 美股 / ETF / 期货 / 利率 / 汇率分组列出全部标的。</td></tr>
+    <tr><td>板块</td><td>行业热力图。支持 A股 / 美股 切换，A 股支持「新浪行业」与「证监会」两种口径。</td></tr>
+    <tr><td>宏观</td><td>GDP 前 20 大经济体的经济与债务指标表格，点表头可换列排序。</td></tr>
+    <tr><td>债券</td><td>中美国债收益率曲线 + 美债月度发行量。</td></tr>
+    <tr><td>黄金</td><td>GDP 前 50 经济体的黄金储备与年度净买卖；伦敦金 / 纽约金 / 上海金现货报价与内外价差。</td></tr>
+    <tr><td>关联分析</td><td>多标的滚动相关性 + LightGBM 概率预测。</td></tr>
+  </table>
+
+  <h3>2.2 工具栏（右上角）</h3>
+  <table>
+    <tr><th style="width:20%">控件</th><th>说明</th></tr>
+    <tr><td>市场状态灯</td><td>绿色点＝交易中，灰色＝休市，蓝色＝已收盘。按各市场当地时间判断，含节假日。</td></tr>
+    <tr><td>搜索框</td><td>输入名称、代码或拼音首字母，回车跳到该标的。快捷键 <span class="kbd">/</span>。</td></tr>
+    <tr><td>刷新频率</td><td>2 秒 / 4 秒 / 10 秒 / 30 秒 / 暂停。默认 4 秒。只在「行情」视图轮询。</td></tr>
+    <tr><td>立即刷新</td><td>图标按钮，立刻拉一次最新报价。快捷键 <span class="kbd">R</span>。</td></tr>
+    <tr><td>检查更新</td><td>对比本地构建与远端仓库，有新版本可一键下载安装（多镜像、断点续传）。</td></tr>
+    <tr><td>下载历史</td><td>把当前全部标的的历史 K 线拉取到本地库，用于离线查看与模型训练。</td></tr>
+    <tr><td>时钟</td><td>显示当前时间与星期；跨日后自动刷新交易日。</td></tr>
+  </table>
+
+  <h3>2.3 行情页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>标的卡片</td><td>显示名称、市场标签、最新价、币种、涨跌额与涨跌幅、成交量、迷你走势。点击切换到主图。</td></tr>
+    <tr><td>分时</td><td>当日分钟走势，含均价线与成交量柱。</td></tr>
+    <tr><td>日线</td><td>K 线 + MA20 + 成交量；滚轮缩放、拖拽平移。与资金流图的时间轴双向同步。</td></tr>
+    <tr><td>资金流</td><td>按 OHLCV 估算的日内流入/流出占比曲线（算法见 3.4）。</td></tr>
+    <tr><td>详情面板</td><td>最新价、涨跌额、涨跌幅、今开、最高、最低、昨收、成交量、成交额、更新时间、数据源（可点击跳转来源网站）。</td></tr>
+    <tr><td>导出 CSV</td><td>把当前标的的可见历史导出为 CSV 到 <code>data\exports\</code>。</td></tr>
+    <tr><td>补全该标的历史</td><td>仅对缺数据的标的显示，点击后从数据源补齐日线。</td></tr>
+    <tr><td>区间涨幅</td><td>详情面板底部：1 周 / 1 月 / 3 月 / 6 月 / 1 年 的累计涨跌幅。</td></tr>
+  </table>
+
+  <h3>2.4 板块页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>A股 / 美股</td><td>切换市场。美股为纳斯达克 sector 分类（13 个板块）。</td></tr>
+    <tr><td>新浪行业 / 证监会</td><td>A 股口径切换。<b>新浪行业</b>：49 个行业，金融再拆成银行/证券/保险/多元金融；<b>证监会</b>：证监会《上市公司行业分类结果》，5521 只股票，门类 → 次类 → 大类。</td></tr>
+    <tr><td>搜索行业</td><td>跨层级过滤；命中时自动展开所属门类。</td></tr>
+    <tr><td>按涨幅 ↓</td><td>切换行业排序方向。</td></tr>
+    <tr><td>树图方块</td><td>面积 = 个股总市值，颜色 = 涨跌幅（红涨绿跌，±6% 封顶），点方块下钻个股。</td></tr>
+    <tr><td>行业涨跌幅</td><td>按成分股市值加权的涨跌幅，不是简单平均。</td></tr>
+    <tr><td>行业 ETF</td><td>自动匹配 A 股上市的行业/主题 ETF（排除港股、恒生、纳指等跨境品种），显示其涨跌幅。</td></tr>
+    <tr><td>返回板块</td><td>下钻个股后，左上角出现该按钮，回到行业热力图。</td></tr>
+  </table>
+
+  <h3>2.5 宏观页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>表格列</td><td>GDP、GNI、人均 GDP、GDP 同比、失业率、政府债务/GDP、广义货币/GDP、CPI、政策利率、债务来源。</td></tr>
+    <tr><td>点表头</td><td>按该列升/降序排序，方便找「债务率最高」「失业率最低」。</td></tr>
+    <tr><td>官 / 本 标记</td><td><b>官</b>＝该国官方统计源（如美国财政部 FiscalData、巴西央行 SGS）；<b>本</b>＝读取本地 CSV（<code>data\sovereign_debt\</code>），可覆盖官方数据。</td></tr>
+    <tr><td>政策利率</td><td>人工维护的参考值，标注了数据截止月份，不是实时值。</td></tr>
+  </table>
+
+  <h3>2.6 债券页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>收益率曲线</td><td>中国（2Y/5Y/10Y/30Y）与美国国债收益率曲线，横轴期限、纵轴收益率。</td></tr>
+    <tr><td>美债发行量</td><td>按 Bill / Note / Bond 分类的月度发行规模，单位十亿美元，来自美国财政部拍卖记录。</td></tr>
+    <tr><td>数据源链接</td><td>副标题里的来源名可点击跳转（美国财政部、东方财富、CNBC 等）。</td></tr>
+  </table>
+
+  <h3>2.7 黄金页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>现货报价卡</td><td>伦敦金（LBMA）、纽约金（COMEX）、上海金 Au99.99、上海金 T+D：最新价、涨跌幅、报价时间。</td></tr>
+    <tr><td>内外价差</td><td>上海金折人民币克价 与「伦敦金 × USD/CNY ÷ 31.1035」的差额，正值表示国内溢价。</td></tr>
+    <tr><td>储备表</td><td>50 个经济体的黄金储备（吨）、同比变化、占外储比例、储备市值。</td></tr>
+    <tr><td>增持 / 减持前列</td><td>按年度变化排序，即「净买入 / 净卖出」最多的国家。</td></tr>
+  </table>
+
+  <h3>2.8 关联分析页</h3>
+  <table>
+    <tr><th style="width:22%">元素</th><th>说明</th></tr>
+    <tr><td>选择标的</td><td>左侧勾选 2~8 个标的，已选的以标签形式显示在顶部，可单个移除。</td></tr>
+    <tr><td>滚动窗口</td><td>20 日（短，敏感）/ 60 日（默认）/ 120 日（长，平滑）。</td></tr>
+    <tr><td>观察区间</td><td>1Y / 2Y / 3Y / ALL，决定横轴跨度。</td></tr>
+    <tr><td>权重设置</td><td>调整 6 个指标在「综合关联指数」里的权重，实时重算。</td></tr>
+    <tr><td>重置</td><td>权重恢复默认（30 / 20 / 15 / 15 / 10 / 10）。</td></tr>
+    <tr><td>指标说明</td><td>右下角面板，快速回顾各指标含义。</td></tr>
+    <tr><td>LightGBM 概率预测</td><td>见 3.9：用已选指标预测第一个标的下一期涨跌区间概率。</td></tr>
+  </table>
+</section>
+
+<!-- ============ 3 指标字典 ============ -->
+<section class="page-break">
+  <h2>3 指标字典：定义、算法与作用</h2>
+  <p class="muted">每个指标按「是什么 → 怎么算 → 怎么看 → 注意什么」四段说明。</p>
+
+  <h3>3.1 行情基础指标</h3>
+
+  <h4>涨跌幅（%）</h4>
+  <ul>
+    <li><b>定义</b>：最新价相对上一交易日收盘价的变化百分比。</li>
+    <li><b>算法</b>：<code>(最新价 − 昨收) ÷ 昨收 × 100%</code>；期货、外汇用同一口径。</li>
+    <li><b>作用</b>：最直观的强弱度量，是卡片颜色与树图着色的依据。</li>
+    <li><b>注意</b>：不同市场涨跌幅限制不同（A 股主板 ±10%、创业板/科创板 ±20%），跨市场比较大小时要留意。</li>
+  </ul>
+
+  <h4>成交量 / 成交额</h4>
+  <ul>
+    <li><b>定义</b>：当期成交的股数（成交量）与金额（成交额）。</li>
+    <li><b>算法</b>：直接取数据源字段；A 股单位为手（1 手 = 100 股）与元，本程序统一换算为「股 / 元」后按量级显示（万 / 亿）。</li>
+    <li><b>作用</b>：验证价格变化是否有量能配合；放量上涨与缩量上涨含义不同。</li>
+  </ul>
+
+  <h4>MA20（20 日均线）</h4>
+  <ul>
+    <li><b>算法</b>：最近 20 个交易日收盘价的算术平均，逐日滚动。</li>
+    <li><b>作用</b>：中期趋势参考线。价格在 MA20 之上视为强势，跌破视为走弱。</li>
+    <li><b>注意</b>：均线是滞后指标，震荡市里容易反复穿越，不构成买卖信号。</li>
+  </ul>
+
+  <h3>3.2 关联分析指标</h3>
+  <p>所有相关性指标都落在 <b>[−1, 1]</b>：<span class="tag-up">+1</span> 完全同向，<span class="tag-down">−1</span> 完全反向，0 无关。</p>
+
+  <h4>Pearson 线性相关</h4>
+  <ul>
+    <li><b>定义</b>：两个标的日收益率在窗口内的线性相关程度。</li>
+    <li><b>算法</b>：
+      <div class="formula">r = Σ[(xᵢ − x̄)(yᵢ − ȳ)] ÷ √(Σ(xᵢ − x̄)² · Σ(yᵢ − ȳ)²)</div>
+      x、y 为窗口内两个标的的日收益率（不是价格，避免趋势造成的伪相关）。
+    </li>
+    <li><b>作用</b>：最常用的相关性度量，衡量「一起动」的程度。</li>
+    <li><b>注意</b>：对异常值敏感，单日暴涨暴跌会显著拉低相关系数；只反映线性关系，非线性关系会低估。</li>
+  </ul>
+
+  <h4>Spearman 秩相关</h4>
+  <ul>
+    <li><b>定义</b>：把收益率换成排名后计算 Pearson，即秩相关。</li>
+    <li><b>算法</b>：对窗口内每列取秩次（并列取平均秩），再套用 Pearson 公式。</li>
+    <li><b>作用</b>：抗极端值。当某天出现异动、Pearson 被拉低但 Spearman 仍高时，说明整体同向关系没变。</li>
+  </ul>
+
+  <h4>Kendall τ 秩相关</h4>
+  <ul>
+    <li><b>定义</b>：比较所有样本对的方向一致性。</li>
+    <li><b>算法</b>：τ =（一致对 − 不一致对）÷ 总对数，含并列修正（τ-b）。</li>
+    <li><b>作用</b>：小样本更稳健，对分布假设要求最低。</li>
+    <li><b>注意</b>：值通常比 Pearson 小，−0.3 的 Kendall 已经算较强关系，不要与 Pearson 直接比大小。</li>
+  </ul>
+
+  <h4>下行相关（同跌）</h4>
+  <ul>
+    <li><b>定义</b>：只取窗口内<b>双方同时下跌</b>的交易日计算相关性。</li>
+    <li><b>算法</b>：先过滤 <code>x &lt; 0 且 y &lt; 0</code> 的样本，再算 Pearson；样本少于 3 个时返回缺失。</li>
+    <li><b>作用</b>：衡量「一起跌」的程度。分散投资最怕的是下跌时同向，而不是上涨时同向。</li>
+    <li><b>注意</b>：只看下跌日，样本量比全样本少，波动更大。</li>
+  </ul>
+
+  <h4>波动相关（|收益|）</h4>
+  <ul>
+    <li><b>定义</b>：两个标的收益率绝对值之间的相关性。</li>
+    <li><b>算法</b>：对 |r| 序列计算 Pearson。</li>
+    <li><b>作用</b>：衡量波动是否共振——一个市场剧烈波动时，另一个是否也跟着剧烈波动，无论方向。</li>
+    <li><b>注意</b>：高波动相关、低方向相关，说明两者「同惊不同向」，适合对冲而非同向配置。</li>
+  </ul>
+
+  <h4>滞后相关（±1 日）</h4>
+  <ul>
+    <li><b>定义</b>：一个标的今天与另一个标的昨天（或反之）的相关性。</li>
+    <li><b>算法</b>：<code>leadlag = [corr(Aₜ, Bₜ₋₁) + corr(Bₜ, Aₜ₋₁)] ÷ 2</code>，取对称平均。</li>
+    <li><b>作用</b>：捕捉「谁领先谁一天」的传导关系。跨时区市场（如美股 vs A 股）常出现明显滞后相关。</li>
+    <li><b>注意</b>：对称平均会掩盖单方向领先；若需判断方向，可看下方「配对明细」。</li>
+  </ul>
+
+  <h4>综合关联指数</h4>
+  <ul>
+    <li><b>定义</b>：把上面 6 个指标按权重加权平均，得到一个统一读数。</li>
+    <li><b>算法</b>：
+      <div class="formula">综合 = Σ(wᵢ · metricᵢ) ÷ Σwᵢ（缺失的指标自动剔出并重新归一化权重）</div>
+      默认权重：Pearson 30%、Spearman 20%、Kendall 15%、下行 15%、波动 10%、滞后 10%。
+    </li>
+    <li><b>作用</b>：避免单看某一个指标被极端值误导；一眼判断两个标的的整体联动强度。</li>
+    <li><b>怎么调</b>：关系里最关心下跌风险，就提高「下行相关」的权重。</li>
+  </ul>
+
+  <h4>相关性强度判定</h4>
+  <table>
+    <tr><th>|ρ| 范围</th><th>判定</th><th>含义</th></tr>
+    <tr><td>0 ~ 0.1</td><td>基本不相关</td><td>走势独立，分散效果好</td></tr>
+    <tr><td>0.1 ~ 0.3</td><td>弱相关</td><td>有微弱联动</td></tr>
+    <tr><td>0.3 ~ 0.6</td><td>中等相关</td><td>同向倾向明显</td></tr>
+    <tr><td>0.6 ~ 1.0</td><td>强相关</td><td>基本同涨同跌，分散作用有限</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>相关性不等于因果。</b>高相关也可能是同受第三个因素（如美元流动性）驱动；相关系数也会随窗口切换而显著变化，20 日窗口的结论不要直接外推到长期。
+  </div>
+</section>
+
+<section class="page-break">
+  <h3>3.3 资金流估算</h3>
+  <h4>个股资金流（流入 / 流出占比）</h4>
+  <ul>
+    <li><b>定义</b>：用当日 K 线的收盘位置估算买卖力量占比。</li>
+    <li><b>算法</b>：
+      <div class="formula">流入% = (收盘 − 最低) ÷ (最高 − 最低) × 100<br />
+流出% = 100 − 流入%<br />
+净流入% = 流入% − 流出%</div>
+      最高 = 最低（一字板或无波动）时按 50 : 50 中性处理。
+    </li>
+    <li><b>作用</b>：在免费数据源没有逐笔成交的情况下，用价格在当日区间的位置近似「收盘时是谁占上风」。</li>
+    <li><b>注意</b>：这是<b>估算</b>，不是真实资金流向；只能横向比较强弱，不能当作绝对金额。</li>
+  </ul>
+
+  <h4>利率 / 债券的资金流</h4>
+  <ul>
+    <li><b>算法</b>：收益率没有成交量，改用日变动（bp）相对近 20 日波动的比例归一化到 ±100。<b>收益率下行视为债券净流入</b>，上行视为净流出。</li>
+  </ul>
+
+  <h4>市场资金流（净流入占比曲线）</h4>
+  <ul>
+    <li><b>定义</b>：把一个市场内所有标的的日资金流按市值加权汇总后的累计曲线。</li>
+    <li><b>算法</b>：市场内每个标的取 3.3 的净流入%，按总市值加权平均，再按日累加。</li>
+    <li><b>作用</b>：观察资金在 A股 / 港股 / 美股 / ETF / 期货 / 债券 / 利率 / 汇率 之间的相对流向。</li>
+  </ul>
+
+  <h3>3.4 LightGBM 概率预测</h3>
+  <h4>它预测什么</h4>
+  <p>给定用户选定的 N 个指标，预测<b>目标指标（第一个选中的）下一期相对上一期的涨跌幅</b>落在各个区间的概率。</p>
+
+  <h4>输入特征</h4>
+  <ul>
+    <li>每个指标取 <b>t-1 及之前 T 个交易日</b>的日收益率（T 默认 20，可调 5~120）；</li>
+    <li>再加每个指标 T 期收益率的标准差（波动率）；</li>
+    <li>特征总数 = <code>N × (T + 1)</code>，例如 3 个指标、T=20 → 63 个特征。</li>
+  </ul>
+
+  <h4>目标与分档</h4>
+  <ul>
+    <li>目标值 = 目标指标在 t 时刻的日收益率；</li>
+    <li>按<b>训练集分位数</b>切成 K 档（默认 6 档），保证每档样本量接近，避免极端档样本过少；</li>
+    <li>档位标签如「低于 −0.44%」「−0.44% ~ 0.05%」「高于 0.53%」，负值档为下跌、正值档为上涨。</li>
+  </ul>
+
+  <h4>模型与训练</h4>
+  <ul>
+    <li>LightGBM 多分类（原生 API），260 轮、学习率 0.05、num_leaves 15、max_depth 5；</li>
+    <li><b>按时间顺序切分</b>：前 80% 训练、后 20% 测试，绝不随机打乱，避免未来数据泄漏；</li>
+    <li>输出前做 <b>25% 先验收缩</b>：<code>概率 = 0.75 × 模型 + 0.25 × 训练集分布</code>，抑制树模型过度自信。</li>
+  </ul>
+
+  <h4>怎么读结果</h4>
+  <table>
+    <tr><th style="width:26%">字段</th><th>含义</th></tr>
+    <tr><td>各档概率</td><td>该区间相对更可能出现，不是收益承诺；各档概率之和为 100%。</td></tr>
+    <tr><td>测试集准确率</td><td>在没参与训练的最近 20% 数据上，猜中档位的比例。</td></tr>
+    <tr><td>多数类基线</td><td>「永远猜样本最多那一档」的准确率。只有明显高于基线才有参考价值。</td></tr>
+    <tr><td>特征贡献</td><td>按 gain 归一化的前几名特征，能看出模型主要依赖哪个指标/哪一天。</td></tr>
+    <tr><td>引擎标识</td><td>绿色 LightGBM 表示用的是真模型；黄色「内置逻辑回归」表示 LightGBM 未加载（会显示原因）。</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>金融时间序列可预测性天然很低。</b>准确率 25%~35% 在 6 档分类里已属正常水平；不要把它当作交易信号，更不要据此加杠杆。
+  </div>
+</section>
+
+<section class="page-break">
+  <h3>3.5 宏观指标</h3>
+  <table>
+    <tr><th style="width:20%">指标</th><th style="width:34%">定义 / 算法</th><th>作用与注意</th></tr>
+    <tr><td>GDP（现价美元）</td><td>世界银行年度现价美元 GDP</td><td>衡量经济体量，用于筛选与排序；年度数据，不反映季度波动</td></tr>
+    <tr><td>GNI（人均）</td><td>国民总收入 ÷ 人口</td><td>比人均 GDP 更贴近居民收入水平</td></tr>
+    <tr><td>GDP 同比</td><td>本年 GDP ÷ 上年 GDP − 1</td><td>看增长动能；受基数影响大</td></tr>
+    <tr><td>失业率</td><td>ILO 口径失业人口 ÷ 劳动力</td><td>就业松紧；各国统计口径略有差异</td></tr>
+    <tr><td>政府债务 / GDP</td><td>一般政府总债务 ÷ 当年 GDP</td><td>财政空间；超过 100% 并不必然危机，但制约刺激能力</td></tr>
+    <tr><td>广义货币 / GDP</td><td>M2（或各国口径）÷ GDP</td><td>金融深化程度与流动性存量</td></tr>
+    <tr><td>CPI 同比</td><td>CPI 指数同比</td><td>通胀水平；影响货币政策预期</td></tr>
+    <tr><td>政策利率</td><td>各国央行基准利率，人工维护</td><td>标注了截止月份；不要当作实时值</td></tr>
+  </table>
+
+  <h3>3.6 债券指标</h3>
+  <ul>
+    <li><b>国债收益率</b>：2Y / 5Y / 10Y / 30Y 到期收益率，反映市场对增长、通胀与政策的定价。</li>
+    <li><b>期限利差</b>：10Y − 2Y。倒挂（负值）历史上常被视为衰退前兆，但不是必然。</li>
+    <li><b>美债发行量</b>：按 Bill（≤1 年）/ Note（2~10 年）/ Bond（≥20 年）分类的月度发行规模，反映财政融资压力与供给冲击。</li>
+    <li><b>数据源</b>：中国国债收益率来自东方财富（偶尔限流，缺失时曲线会提示）；美国来自 CNBC 实时报价，缺失时用最近收盘价兜底。</li>
+  </ul>
+
+  <h3>3.7 黄金指标</h3>
+  <ul>
+    <li><b>黄金储备（吨）</b>：世界银行「总储备 − 不含黄金储备」得到黄金的美元价值，再按当年金价折算成吨数。</li>
+    <li><b>年度净买卖</b>：储备吨数的同比变化。正值＝净买入，负值＝净卖出。</li>
+    <li><b>占外储比例</b>：黄金储备市值 ÷ 总储备。</li>
+    <li><b>内外价差</b>：<code>上海金（元/克） − 伦敦金（美元/盎司） × USD/CNY ÷ 31.1035</code>。正值表示国内溢价（常见于汇率贬值预期或国内需求旺盛）。</li>
+  </ul>
+
+  <h3>3.8 板块指标</h3>
+  <ul>
+    <li><b>行业涨跌幅</b>：成分股市值加权的涨跌幅，<code>Σ(个股涨跌幅 × 市值) ÷ Σ市值</code>，避免小盘股拉偏。</li>
+    <li><b>树图面积</b>：个股总市值；<b>颜色</b>：涨跌幅（红涨绿跌，±6% 封顶，防止极端值吃掉色阶）。</li>
+    <li><b>证监会口径层级</b>：门类（19）→ 次类（制造业专有）→ 大类（30+）。门类点名称看聚合热力图，点箭头只展开/收起。</li>
+    <li><b>新浪行业口径</b>：49 个行业；金融被拆成银行 / 证券 / 保险 / 多元金融，按名称与名单规则归类。</li>
+    <li><b>美股口径</b>：纳斯达克 sector（13 个板块、近 7000 只股票）。</li>
+  </ul>
+</section>
+
+<!-- ============ 4 数据来源 ============ -->
+<section class="page-break">
+  <h2>4 数据来源与更新频率</h2>
+  <table>
+    <tr><th style="width:22%">数据</th><th style="width:26%">来源</th><th>更新频率 / 缓存</th></tr>
+    <tr><td>A 股 / 指数 / 期货 / 外汇 / 贵金属</td><td>新浪财经 <code>hq.sinajs.cn</code></td><td>实时，前端 4 秒轮询</td></tr>
+    <tr><td>港股 / 美股 / ETF 报价</td><td>腾讯行情 <code>qt.gtimg.cn</code></td><td>实时</td></tr>
+    <tr><td>K 线与分时</td><td>腾讯 / 新浪</td><td>日线缓存 15 分钟，分时 30 秒</td></tr>
+    <tr><td>美股指数与个股</td><td>CNBC / 纳斯达克</td><td>实时；列表缓存 10 分钟</td></tr>
+    <tr><td>行业板块（A 股）</td><td>新浪行业 / 证监会 PDF</td><td>行业列表 10 分钟，成分股 2 分钟</td></tr>
+    <tr><td>宏观（GDP、债务、CPI 等）</td><td>世界银行 API + 各国官方源</td><td>启动预热，缓存 6 小时</td></tr>
+    <tr><td>国债收益率</td><td>东方财富（中）/ CNBC（美）</td><td>10 分钟</td></tr>
+    <tr><td>美债发行量</td><td>美国财政部 FiscalData</td><td>12 小时</td></tr>
+    <tr><td>黄金储备与金价</td><td>世界银行 + COMEX 年线</td><td>12 小时</td></tr>
+    <tr><td>上海金现货</td><td>上海黄金交易所（经新浪）</td><td>5 秒缓存</td></tr>
+  </table>
+  <div class="callout">
+    所有来源地址都已列在页面底部，<b>点一下即可跳转</b>到对应网站核对原始数据。页面详情面板的「数据源」也可以点击。
+  </div>
+
+  <h2>5 本地数据、导出与备份</h2>
+  <table>
+    <tr><th style="width:30%">路径</th><th>内容</th></tr>
+    <tr><td><code>data\market.db</code></td><td>本地行情库（SQLite），存全部标的的日/周/月 K 线与缓存，删除后会自动重建</td></tr>
+    <tr><td><code>data\exports\</code></td><td>点「导出 CSV」生成的文件</td></tr>
+    <tr><td><code>data\sovereign_debt\</code></td><td>各国债务的本地 CSV（可覆盖官方数据，页面标记为「本」）</td></tr>
+    <tr><td><code>data\gold_reserves\</code></td><td>黄金储备的本地 CSV</td></tr>
+    <tr><td><code>data\industry_map.csv</code></td><td>证监会行业归属映射（5521 行），首次启动自动生成</td></tr>
+    <tr><td><code>data\updates\</code></td><td>自动更新下载的安装包</td></tr>
+    <tr><td><code>data\app.log</code></td><td>运行日志，排查问题时看这里</td></tr>
+  </table>
+  <p><b>备份</b>：直接复制整个 <code>data\</code> 目录即可；重装软件不会删除它。<b>迁移</b>：把 <code>data\</code> 拷到新机器的同位置。</p>
+
+  <h2>6 软件更新与版本规则</h2>
+  <ul>
+    <li><b>检查更新</b>：工具栏按钮，对比本地构建与远端仓库的最新提交。</li>
+    <li><b>判定方式</b>：用 git 提交判断新旧（比版本号精确，能识别同一版本号下的多次修补），版本号只用于展示与沟通。</li>
+    <li><b>下载</b>：按 ghfast.top → gh-proxy.com → ghproxy.net → 直连 → jsDelivr 顺序尝试，支持断点续传，界面会显示当前使用的镜像。</li>
+    <li><b>安装</b>：下载完成后程序自动退出，由安装器静默覆盖安装并重新打开。数据目录不受影响。</li>
+    <li><b>版本号</b>：<code>MAJOR.MINOR.PATCH</code>。不兼容变更升 MAJOR，新增功能升 MINOR，修复升 PATCH。</li>
+  </ul>
+
+  <h2>7 常见问题</h2>
+
+  <h4>Q1：页面显示「无法连接」或一直转圈？</h4>
+  <p>先看 <code>data\app.log</code> 末尾。常见原因是浏览器窗口比服务先退出，重新打开程序即可；也可能是某个数据源临时不可用，其他视图不受影响。</p>
+
+  <h4>Q2：某个指标显示「—」？</h4>
+  <p>代表该数据源本次没返回（限流、休市、接口调整）。程序不会用 0 填充，避免误导。</p>
+
+  <h4>Q3：板块页切到「证监会」是空的？</h4>
+  <p>说明 <code>data\industry_map.csv</code> 缺失。重装后首次启动会自动生成；也可以运行 <code>python run.py pdf-import</code> 从 PDF 重新解析。</p>
+
+  <h4>Q4：LightGBM 显示「内置逻辑回归」？</h4>
+  <p>说明运行环境没有加载到 LightGBM（标签悬停可看具体原因）。功能仍可用，但模型换成内置的逻辑回归，精度与特征贡献会缺失。</p>
+
+  <h4>Q5：历史数据能保存多久？</h4>
+  <p>本地库按需累积，日线默认保留全部已下载记录；「下载历史」可一次性补齐全部标的。</p>
+
+  <h4>Q6：可以离线使用吗？</h4>
+  <p>已下载过历史的标的可以离线查看日线与板块；实时报价、宏观、更新检查需要联网。</p>
+
+  <h2>8 附录</h2>
+  <h4>单位与币种</h4>
+  <table>
+    <tr><th style="width:24%">场景</th><th>显示</th></tr>
+    <tr><td>A 股、国内商品、上海金</td><td>RMB / 元</td></tr>
+    <tr><td>港股</td><td>港元</td></tr>
+    <tr><td>美股、COMEX、伦敦金</td><td>美元</td></tr>
+    <tr><td>利率、汇率</td><td>无币种（% / 比值）</td></tr>
+    <tr><td>大额数值</td><td>自动换算为「万 / 亿」</td></tr>
+  </table>
+
+  <h4>快捷键</h4>
+  <table>
+    <tr><th style="width:24%">按键</th><th>功能</th></tr>
+    <tr><td><span class="kbd">/</span></td><td>聚焦搜索框</td></tr>
+    <tr><td><span class="kbd">R</span></td><td>立即刷新</td></tr>
+    <tr><td><span class="kbd">Esc</span></td><td>关闭弹窗 / 退出下钻</td></tr>
+  </table>
+
+  <div class="callout" style="margin-top:8mm">
+    <b>免责声明</b>：本软件所有数据来自公开渠道，仅用于研究与学习。指标与模型结果不构成任何投资建议，据此操作风险自负。
+  </div>
+</section>
+
+</body>
+</html>

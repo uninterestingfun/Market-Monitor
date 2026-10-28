@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, industry_map, macro, mlmodel, sectors, sources, sovereign_debt, us_sectors
+from . import config, gold, industry_map, macro, manual, mlmodel, sectors, sources, sovereign_debt, us_sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -140,6 +140,8 @@ class MarketService:
             gold.set_data_dir(data_root)
             industry_map.set_data_dir(data_root)
             industry_map.ensure_seed(data_root)
+            manual.ensure_seed(data_root)
+            self.data_dir = data_root
         except Exception:
             pass
         self.refresh_seconds = refresh_seconds

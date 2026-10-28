@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import bonds, gold, gold_spot, industry_map, macro, sectors, update, us_sectors
+from . import bonds, gold, gold_spot, industry_map, macro, manual, sectors, update, us_sectors
 from .version import build_stamp, full_version
 from .service import MarketService
 
@@ -94,6 +94,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/bye":
             self.service.farewell()
             self._json({"ok": True})
+            return
+        if path == "/api/manual":
+            target = manual.resolve(self.service.data_dir)
+            if not target:
+                self._send(404, "内置手册缺失".encode("utf-8"), "text/plain; charset=utf-8")
+                return
+            with open(target, "rb") as fh:
+                body = fh.read()
+            name = "MarketMonitor-manual.pdf"
+            encoded = __import__("urllib.parse", fromlist=["quote"]).quote(manual.FILENAME)
+            self._send(200, body, "application/pdf",
+                       extra={"Content-Disposition": f"inline; filename=\"{name}\"; filename*=UTF-8''{encoded}"})
             return
         if path == "/api/mlsignal":
             raw = (query.get("assets") or [""])[0]

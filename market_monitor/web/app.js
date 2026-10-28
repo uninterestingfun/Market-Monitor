@@ -2707,6 +2707,10 @@
     const btn = $("#btn-update");
     if (!btn) return;
     btn.addEventListener("click", openUpdate);
+    const manualBtn = $("#btn-manual");
+    if (manualBtn) {
+      manualBtn.addEventListener("click", () => window.open("/api/manual", "_blank"));
+    }
     $("#up-close").addEventListener("click", () => { $("#update-modal").hidden = true; });
     $("#update-modal").addEventListener("click", (e) => {
       if (e.target.dataset.close) $("#update-modal").hidden = true;

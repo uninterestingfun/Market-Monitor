@@ -60,11 +60,16 @@
       </svg>
     </button>
 
-    <button class="btn" id="btn-update" title="检查并安装新版本">
-      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+    <button class="btn icon" id="btn-update" title="检查更新" aria-label="检查更新">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
         <path d="M12 3v9m0 0l-3.2-3.2M12 12l3.2-3.2M4.5 16.5A7 7 0 0019.5 16.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span id="update-label">检查更新</span>
+    </button>
+
+    <button class="btn icon" id="btn-manual" title="使用手册（PDF）" aria-label="使用手册">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M5 4.5A1.5 1.5 0 016.5 3H18v18H6.5A1.5 1.5 0 015 19.5zM8 7h7M8 11h7M8 15h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </button>
 
     <button class="btn" id="btn-download" title="下载全部标的历史数据">
@@ -406,6 +411,7 @@
 
 <footer>
   <span id="footer-sources">数据来源：加载中…</span>
+  <a id="footer-manual" class="src-link" href="/api/manual" target="_blank" rel="noopener">使用手册 PDF</a>
   <span id="footer-version">v1.0.0</span>
   <span>本工具仅供研究参考，不构成投资建议</span>
 </footer>

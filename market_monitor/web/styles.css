@@ -1025,3 +1025,26 @@ footer {
 .ml-help dt { color: var(--text); font-weight: 500; }
 .ml-help dd { margin: 0; color: var(--muted); }
 .ml-controls select { min-width: 86px; }
+
+/* 工具栏按钮：不换行、不被压缩 */
+.toolbar .btn, .toolbar .search, .toolbar .select-wrap { white-space: nowrap; flex-shrink: 0; }
+.toolbar { gap: 8px; min-width: 0; }
+.toolbar .search { max-width: 240px; }
+
+/* 工具栏自适应：窄屏收紧搜索框 */
+.toolbar .search { max-width: 190px; }
+@media (max-width: 1500px) { .toolbar .search { max-width: 150px; } }
+.toolbar .btn span { white-space: nowrap; }
+
+/* 工具栏：图标按钮沿用 .icon 尺寸 */
+.toolbar .btn.icon { width: 34px; padding: 0; justify-content: center; }
+
+/* 图标按钮内不显示文字标签（仅保留 tooltip） */
+.toolbar .btn.icon span { display: none; }
+.toolbar .search { max-width: 160px; }
+
+/* 顶栏自适应：空间不足时换行而不是裁剪 */
+.topbar { flex-wrap: wrap; height: auto; min-height: 66px; row-gap: 6px; }
+.topbar .toolbar { margin-left: auto; }
+.toolbar .btn span { display: inline; }
+.toolbar .btn.icon span { display: none; }
