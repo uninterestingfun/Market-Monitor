@@ -95,6 +95,13 @@ class Handler(BaseHTTPRequestHandler):
             self.service.farewell()
             self._json({"ok": True})
             return
+        if path == "/api/huijin":
+            try:
+                quarters = int((query.get("quarters") or ["8"])[0])
+            except ValueError:
+                quarters = 8
+            self._json(self.service.huijin(max(2, min(quarters, 16))))
+            return
         if path == "/api/report":
             self._json(self.service.daily_report())
             return

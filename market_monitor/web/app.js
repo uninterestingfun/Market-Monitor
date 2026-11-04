@@ -1763,6 +1763,97 @@
       `覆盖：A股 ${c.cn || 0} 项 · 港股 ${c.hk || 0} 项 · 美股 ${c.us || 0} 项 · 债券 ${c.bonds || 0} 项 · 商品 ${c.commodity || 0} 项 · 汇率 ${c.fx || 0} 项 · 仅供参考`;
   }
 
+
+  /* ───────────────────────── 官方机构：中央汇金 ───────────────────────── */
+  const hj = { data: null, bound: false, loading: false };
+
+  function initHuijin() {
+    if (hj.bound) return;
+    hj.bound = true;
+    $("#hj-reload").addEventListener("click", () => loadHuijin(true));
+  }
+
+  function fmtShares(v) {
+    if (v === null || v === undefined) return "—";
+    const n = Number(v);
+    if (!isFinite(n)) return "—";
+    if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(2)} 亿股`;
+    if (Math.abs(n) >= 1e4) return `${(n / 1e4).toFixed(1)} 万股`;
+    return `${n.toLocaleString()} 股`;
+  }
+
+  async function loadHuijin(force) {
+    if (hj.loading) return;
+    if (hj.data && !force) {
+      renderHuijin(hj.data);
+      return;
+    }
+    hj.loading = true;
+    $("#hj-sub").textContent = "加载中…";
+    $("#hj-ops").innerHTML = "";
+    $("#hj-holdings").innerHTML = "";
+    $("#hj-cards").innerHTML = `<div class="hj-card"><span class="hj-k">数据</span><b>加载中…</b></div>`;
+    try {
+      const d = await (await fetch("/api/huijin?quarters=8", { cache: "no-store" })).json();
+      if (!d.ok) {
+        $("#hj-sub").textContent = "获取失败";
+        $("#hj-cards").innerHTML = `<div class="hj-card"><span class="hj-k">错误</span><b>${d.error || "未知错误"}</b></div>`;
+        return;
+      }
+      hj.data = d;
+      renderHuijin(d);
+    } catch (err) {
+      $("#hj-sub").textContent = "获取失败";
+      $("#hj-cards").innerHTML = `<div class="hj-card"><span class="hj-k">错误</span><b>${err.message}</b></div>`;
+    } finally {
+      hj.loading = false;
+    }
+  }
+
+  function renderHuijin(d) {
+    const s = d.summary || {};
+    const inv = s["汇金投资"] || {};
+    const ast = s["汇金资管"] || {};
+    const ops = d.operations || [];
+    $("#hj-sub").textContent = `最新披露期 ${s.latest || "—"}`;
+
+    const card = (k, v, sub) => `<div class="hj-card"><span class="hj-k">${k}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ""}</div>`;
+    $("#hj-cards").innerHTML = [
+      card("披露期", s.latest || "—", s.prev ? `上一期 ${s.prev}` : ""),
+      card("汇金投资持仓", `${inv.count || 0} 只`, fmtShares(inv.shares)),
+      card("汇金资管持仓", `${ast.count || 0} 只`, fmtShares(ast.shares)),
+      card("变动记录", `${ops.length} 笔`, ops.length ? "近 8 个季度" : "期间无披露变动"),
+    ].join("");
+
+    if (!ops.length) {
+      $("#hj-ops").innerHTML = `<tr><td class="hj-empty">近 8 个季度未披露持仓变动（汇金对权重股以长期持有为主）</td></tr>`;
+      $("#hj-op-sub").textContent = "近 8 个季度";
+    } else {
+      const head = `<thead><tr><th>披露期</th><th>股票</th><th>主体</th><th>方向</th><th>变动股数</th><th>变动比例</th></tr></thead>`;
+      const rows = ops.slice(0, 80).map((o) => {
+        const cls = o.action === "增持" || o.action === "新进" ? "up" : "down";
+        const pct = o.change_pct === null || o.change_pct === undefined ? "—" : `${o.change_pct > 0 ? "+" : ""}${o.change_pct}%`;
+        return `<tr><td>${o.date}</td><td>${o.name} <span class="muted">${o.code}</span></td>
+          <td>${o.holder}</td><td class="${cls}">${o.action}</td>
+          <td class="${cls}">${o.delta > 0 ? "+" : ""}${fmtShares(o.delta)}</td><td>${pct}</td></tr>`;
+      }).join("");
+      $("#hj-ops").innerHTML = head + `<tbody>${rows}</tbody>`;
+      $("#hj-op-sub").textContent = `近 8 个季度 · ${ops.length} 笔`;
+    }
+
+    const hold = d.holdings || [];
+    $("#hj-hold-sub").textContent = s.latest ? `${s.latest} 前十大流通股东口径` : "";
+    if (!hold.length) {
+      $("#hj-holdings").innerHTML = `<tr><td class="hj-empty">暂无持仓数据</td></tr>`;
+    } else {
+      const head = `<thead><tr><th>股票</th><th>主体</th><th>持股数</th><th>占流通股</th><th>股东排名</th></tr></thead>`;
+      const rows = hold.map((h) => `<tr><td>${h.name} <span class="muted">${h.code}</span></td><td>${h.holder}</td>
+        <td>${fmtShares(h.shares)}</td><td>${h.ratio ? h.ratio.toFixed(2) + "%" : "—"}</td>
+        <td>${h.rank ? "第 " + Math.round(h.rank) + " 位" : "—"}</td></tr>`).join("");
+      $("#hj-holdings").innerHTML = head + `<tbody>${rows}</tbody>`;
+    }
+  }
+
   function switchView(name) {
     document.querySelectorAll("#view-tabs button").forEach((b) => {
       b.classList.toggle("active", b.dataset.view === name);
@@ -1808,7 +1899,9 @@
       state.chart.resize();
     }
     $("#view-report").hidden = name !== "report";
+    $("#view-huijin").hidden = name !== "huijin";
     if (name === "report") { initReport(); loadReport(); }
+    else if (name === "huijin") { initHuijin(); loadHuijin(); }
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */

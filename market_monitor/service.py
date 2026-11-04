@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors
+from . import config, gold, huijin, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -141,6 +141,8 @@ class MarketService:
             industry_map.set_data_dir(data_root)
             industry_map.ensure_seed(data_root)
             manual.ensure_seed(data_root)
+            huijin.set_data_dir(os.path.join(data_root, "huijin"))
+            huijin.write_template(os.path.join(data_root, "huijin"))
             self.data_dir = data_root
         except Exception:
             pass
@@ -194,6 +196,13 @@ class MarketService:
         """LightGBM 概率预测：N 个指标历史 → 目标指标下一期波动区间概率。"""
         try:
             return mlmodel.predict(assets, window=window, buckets=buckets, mode=mode)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def huijin(self, quarters: int = 8) -> dict:
+        """官方机构：中央汇金持仓与操作记录。"""
+        try:
+            return huijin.analyze(quarters)
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:160]}
 

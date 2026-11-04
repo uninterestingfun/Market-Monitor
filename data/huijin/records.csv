@@ -1,0 +1,4 @@
+# 汇金操作记录本地补充（可选）
+# 列：date,code,name,holder,action,shares,ratio,note
+# date 用披露期，如 2026-09-30；action 写 增持/减持/新进/退出/公告
+date,code,name,holder,action,shares,ratio,note

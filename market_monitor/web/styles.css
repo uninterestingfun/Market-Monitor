@@ -1056,3 +1056,22 @@ footer {
 .report-body h3 { font-size: 13px; color: var(--accent); margin: 18px 0 6px; font-weight: 500; letter-spacing: .3px; }
 .report-body p { margin: 0 0 8px; color: var(--muted); }
 .report-body .rp-lead { font-size: 14px; color: var(--text); background: rgba(94,234,212,.06); border-left: 2px solid var(--accent); padding: 8px 12px; border-radius: 0 6px 6px 0; }
+
+/* 官方机构：中央汇金 */
+.hj-wrap { display: flex; flex-direction: column; gap: 12px; max-width: 1180px; margin: 0 auto; }
+.hj-head { display: flex; align-items: center; justify-content: space-between; }
+.hj-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.hj-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.hj-k { font-size: 11.5px; color: var(--faint); }
+.hj-card b { font-size: 17px; font-family: var(--mono); color: var(--text); }
+.hj-card em { font-size: 11px; color: var(--muted); font-style: normal; }
+.hj-table-wrap { overflow-x: auto; }
+.hj-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.hj-table th { text-align: left; color: var(--faint); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+.hj-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--muted); white-space: nowrap; }
+.hj-table td.up { color: var(--up); }
+.hj-table td.down { color: var(--down); }
+.hj-empty { text-align: center; color: var(--faint); padding: 18px 0; }
+.hj-note p { margin: 0 0 6px; font-size: 11.5px; line-height: 1.8; color: var(--muted); }
+.hj-note b { color: var(--text); }
+.hj-note code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }
