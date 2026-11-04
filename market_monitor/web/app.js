@@ -1770,7 +1770,7 @@
   function initHuijin() {
     if (hj.bound) return;
     hj.bound = true;
-    $("#hj-reload").addEventListener("click", () => loadHuijin(true));
+    $("#hj-reload").addEventListener("click", () => { loadHuijin(true); loadHuijinEtf(); });
   }
 
   function fmtShares(v) {
@@ -1807,6 +1807,51 @@
       $("#hj-cards").innerHTML = `<div class="hj-card"><span class="hj-k">错误</span><b>${err.message}</b></div>`;
     } finally {
       hj.loading = false;
+    }
+  }
+
+
+  async function loadHuijinEtf() {
+    const table = $("#hj-etf");
+    if (!table) return;
+    try {
+      const d = await (await fetch("/api/huijin/etf", { cache: "no-store" })).json();
+      if (!d.ok) {
+        table.innerHTML = `<tr><td class="hj-empty">${d.error || "暂无 ETF 份额数据"}</td></tr>`;
+        $("#hj-etf-sub").textContent = "获取失败";
+        return;
+      }
+      $("#hj-etf-sub").textContent = `${d.date} · 沪市 ${d.total_etf} 只 ETF 中的宽基`;
+      const head = `<thead><tr><th>ETF</th><th>最新份额</th><th>日变化</th><th>估算净申购</th><th>上季申购 / 赎回</th></tr></thead>`;
+      const fmt = (v) => {
+        if (v === null || v === undefined || !isFinite(v)) return "—";
+        const n = Number(v) / 1e8;
+        return `${n.toFixed(2)} 亿份`;
+      };
+      const rows = (d.rows || []).map((r) => {
+        const delta = r.delta === null || r.delta === undefined ? "—" : fmt(r.delta);
+        const dcls = r.delta > 0 ? "up" : r.delta < 0 ? "down" : "";
+        const amt = r.amount === null || r.amount === undefined
+          ? "—" : `${r.amount > 0 ? "+" : ""}${(r.amount / 1e8).toFixed(2)} 亿元`;
+        const acls = r.amount > 0 ? "up" : r.amount < 0 ? "down" : "";
+        const q = (r.quarterly || [])[0];
+        const quarter = q
+          ? `${q.subscribe === null ? "—" : q.subscribe} / ${q.redeem === null ? "—" : q.redeem} 亿份 <span class="muted">${q.date}</span>`
+          : "—";
+        return `<tr><td>${r.name} <span class="muted">${r.code}</span></td>
+          <td>${fmt(r.shares)}</td>
+          <td class="${dcls}">${delta === "—" ? "—" : (r.delta > 0 ? "+" : "") + delta}</td>
+          <td class="${acls}">${amt}</td><td>${quarter}</td></tr>`;
+      }).join("");
+      table.innerHTML = head + `<tbody>${rows}</tbody>`;
+      const tip = $("#hj-etf-tip");
+      if (tip) {
+        tip.textContent = d.history_days >= 2
+          ? `成交量口径：份额来自上交所每日披露；已累计 ${d.history_days} 个交易日的快照，日变化为相邻两日差额。估算净申购 = 份额变化 × 最新价。`
+          : "日变化需要至少两个交易日的快照，当前只采集到 1 天（每日 16:30 的日报任务会自动存档），明天起即可显示；季度申购来自基金季报。";
+      }
+    } catch (err) {
+      table.innerHTML = `<tr><td class="hj-empty">加载失败：${err.message}</td></tr>`;
     }
   }
 
@@ -1901,7 +1946,7 @@
     $("#view-report").hidden = name !== "report";
     $("#view-huijin").hidden = name !== "huijin";
     if (name === "report") { initReport(); loadReport(); }
-    else if (name === "huijin") { initHuijin(); loadHuijin(); }
+    else if (name === "huijin") { initHuijin(); loadHuijin(); loadHuijinEtf(); }
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */

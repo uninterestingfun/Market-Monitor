@@ -31,9 +31,15 @@ def _wait_quotes(service: Any, timeout: float = 90.0) -> None:
 
 
 def generate(service: Any, timeout: float = 90.0) -> Dict[str, Any]:
-    from . import report
+    from . import huijin_etf, report
 
     _wait_quotes(service, timeout)
+    # 顺带把当日 ETF 份额快照存下来，便于日后算日变化
+    try:
+        huijin_etf.set_data_dir(os.path.join(ROOT, "data", "huijin"))
+        huijin_etf.save_snapshot(huijin_etf.sse_snapshot())
+    except Exception:
+        pass
     return report.build(service)
 
 

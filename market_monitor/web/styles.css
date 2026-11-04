@@ -1075,3 +1075,6 @@ footer {
 .hj-note p { margin: 0 0 6px; font-size: 11.5px; line-height: 1.8; color: var(--muted); }
 .hj-note b { color: var(--text); }
 .hj-note code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }
+
+/* ETF 申购追踪提示 */
+.hj-tip { font-size: 11px; color: var(--faint); line-height: 1.7; margin: 6px 2px 0; }

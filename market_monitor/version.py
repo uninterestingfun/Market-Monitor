@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-__version__ = "1.5.1"
+__version__ = "1.6.0"
 
 # 预发布标识：正式版留空；候选版可写 "beta.1" / "rc.2"
 PRE_RELEASE = ""

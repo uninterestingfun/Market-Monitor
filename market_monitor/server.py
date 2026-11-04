@@ -95,6 +95,9 @@ class Handler(BaseHTTPRequestHandler):
             self.service.farewell()
             self._json({"ok": True})
             return
+        if path == "/api/huijin/etf":
+            self._json(self.service.huijin_etf())
+            return
         if path == "/api/huijin":
             try:
                 quarters = int((query.get("quarters") or ["8"])[0])
