@@ -2877,6 +2877,16 @@
       if (e.target.dataset.close) $("#update-modal").hidden = true;
     });
     $("#up-download").addEventListener("click", startUpdate);
+    $("#up-reveal").addEventListener("click", async () => {
+      try {
+        const r = await (await fetch("/api/update/reveal")).json();
+        $("#up-body").textContent = r.ok
+          ? `已在资源管理器中选中安装包：${r.path}\n双击它即可手动安装（安装时程序会自动关闭）。`
+          : `打开失败：${r.error || ""}`;
+      } catch (err) {
+        $("#up-body").textContent = "打开失败：" + err.message;
+      }
+    });
   }
 
   async function openUpdate() {
@@ -2945,7 +2955,8 @@
       }
       if (s.done) {
         clearInterval(upd.timer);
-        $("#up-body").textContent = "下载完成，正在启动安装程序…";
+        $("#up-body").textContent = "下载完成，正在启动安装程序…（若 10 秒后窗口未自动关闭，点「打开安装包」手动安装）";
+        $("#up-reveal").hidden = false;
         applyUpdate();
         return;
       }
@@ -2963,8 +2974,9 @@
           ? "已拉取最新代码，请重启程序生效。"
           : "安装程序已启动，本窗口稍后会自动关闭并重新打开。";
       } else {
-        $("#up-body").textContent = "启动安装失败：" + (r.error || "");
+        $("#up-body").textContent = "启动安装失败：" + (r.error || "") + "\n可点「打开安装包」手动运行。";
         $("#up-download").hidden = false;
+        $("#up-reveal").hidden = false;
       }
     } catch (err) {
       $("#up-body").textContent = "启动安装失败：" + err.message;

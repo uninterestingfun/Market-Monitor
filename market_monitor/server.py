@@ -211,6 +211,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/update/status":
             self._json(update.status())
             return
+        if path == "/api/update/reveal":
+            self._json(update.reveal())
+            return
         if path == "/api/update/apply":
             self._json(update.apply_update())
             return

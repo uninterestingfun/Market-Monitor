@@ -230,6 +230,7 @@ def _download_worker() -> None:
             errors.append(f"{label}: {str(exc)[:60]}")
             continue
 
+    _log("全部镜像失败: " + "；".join(errors[:4]))
     with _LOCK:
         _STATE.update({
             "running": False,
@@ -247,6 +248,46 @@ def start_download() -> Dict[str, Any]:
     return {"ok": True}
 
 
+
+def _writable(path: str) -> bool:
+    """尝试在目标目录创建临时文件，判断是否可写。"""
+    try:
+        probe = os.path.join(path, ".mm-write-test")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write("ok")
+        os.remove(probe)
+        return True
+    except Exception:
+        return False
+
+
+def _log(msg: str) -> None:
+    """写入 data/app.log，便于排查更新失败。"""
+    try:
+        path = os.path.join(data_dir(), "app.log")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(f"[update] {time.strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
+
+def reveal() -> Dict[str, Any]:
+    """在资源管理器中选中已下载的安装包（手动安装兜底）。"""
+    with _LOCK:
+        path = _STATE.get("path")
+    if not path:
+        candidate = os.path.join(data_dir(), "updates", "MarketMonitor-Setup.exe")
+        path = candidate if os.path.exists(candidate) else None
+    if not path or not os.path.exists(path):
+        return {"ok": False, "error": "安装包尚未下载完成"}
+    try:
+        subprocess.Popen(["explorer", "/select,", path], close_fds=True)
+        return {"ok": True, "path": path}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:120], "path": path}
+
+
 def apply_update() -> Dict[str, Any]:
     """启动安装包（先退出本进程），或源码模式执行 git pull。"""
     local = local_info()
@@ -256,14 +297,25 @@ def apply_update() -> Dict[str, Any]:
         if not path or not os.path.exists(path):
             return {"ok": False, "error": "安装包尚未下载完成"}
         target = app_dir()
-        # 用独立的 cmd 等本进程退出后再覆盖安装
-        cmd = f'timeout /t 2 >nul & "{path}" --silent --dir "{target}" --no-desktop --no-startmenu --launch'
+        if not _writable(target):
+            _log(f"目标目录不可写: {target}")
+            return {"ok": False,
+                    "error": "当前安装目录不可写（可能装在 Program Files）。已为你定位安装包，请右键“以管理员身份运行”手动安装。",
+                    "need_manual": True}
+        log_path = os.path.join(data_dir(), "install.log")
+        # 先等 5 秒确保本进程文件句柄完全释放，再静默覆盖安装
+        cmd = (
+            f'timeout /t 5 >nul & "{path}" --silent --dir "{target}" '
+            f'--no-desktop --no-startmenu --log "{log_path}"'
+        )
         try:
             subprocess.Popen(["cmd", "/c", cmd], creationflags=0x00000008, close_fds=True)
+            _log(f"启动安装程序: {path} -> {target}")
         except Exception as exc:
+            _log(f"启动安装程序失败: {exc}")
             return {"ok": False, "error": str(exc)[:120]}
-        threading.Timer(0.8, lambda: os._exit(0)).start()
-        return {"ok": True, "restarting": True}
+        threading.Timer(1.2, lambda: os._exit(0)).start()
+        return {"ok": True, "restarting": True, "log": log_path}
 
     # 源码模式：git pull
     try:
