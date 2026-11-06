@@ -1899,6 +1899,183 @@
     }
   }
 
+
+  /* ───────────────────────── 自选板块 ───────────────────────── */
+  const wt = { data: null, chart: null, bound: false, loading: false, code: "" };
+
+  function initWatch() {
+    if (wt.bound) return;
+    wt.bound = true;
+    $("#wt-add").addEventListener("click", () => addWatch());
+    $("#wt-input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") addWatch();
+    });
+    $("#wt-table").addEventListener("click", (e) => {
+      const del = e.target.closest("[data-remove]");
+      if (del) {
+        e.stopPropagation();
+        removeWatch(del.dataset.remove);
+        return;
+      }
+      const row = e.target.closest("tr[data-code]");
+      if (row) loadWatchDetail(row.dataset.code);
+    });
+  }
+
+  async function addWatch() {
+    const raw = ($("#wt-input").value || "").trim();
+    if (!raw) return;
+    try {
+      const d = await (await fetch(`/api/watchlist/add?code=${encodeURIComponent(raw)}`)).json();
+      if (!d.ok) {
+        toast(d.error || "添加失败");
+        return;
+      }
+      $("#wt-input").value = "";
+      toast(`已添加 ${d.item.name || d.item.code}`);
+      await loadWatch(true);
+    } catch (err) {
+      toast("添加失败：" + err.message);
+    }
+  }
+
+  async function removeWatch(code) {
+    try {
+      await fetch(`/api/watchlist/remove?code=${encodeURIComponent(code)}`);
+      if (wt.code === code) {
+        wt.code = "";
+        $("#wt-detail-wrap").hidden = true;
+      }
+      await loadWatch(true);
+    } catch (_) {
+      /* 忽略 */
+    }
+  }
+
+  async function loadWatch(force) {
+    if (wt.loading) return;
+    if (wt.data && !force) {
+      renderWatch(wt.data);
+      return;
+    }
+    wt.loading = true;
+    $("#wt-sub").textContent = "加载中…";
+    try {
+      const d = await (await fetch("/api/watchlist", { cache: "no-store" })).json();
+      if (!d.ok) {
+        $("#wt-sub").textContent = d.error || "加载失败";
+        return;
+      }
+      wt.data = d;
+      renderWatch(d);
+    } catch (err) {
+      $("#wt-sub").textContent = "加载失败：" + err.message;
+    } finally {
+      wt.loading = false;
+    }
+  }
+
+  function fmtMoney(v) {
+    if (v === null || v === undefined || !isFinite(v)) return "—";
+    const n = Number(v);
+    if (Math.abs(n) >= 1e8) return `${(n / 1e8).toFixed(2)} 亿`;
+    if (Math.abs(n) >= 1e4) return `${(n / 1e4).toFixed(1)} 万`;
+    return n.toFixed(0);
+  }
+
+  function renderWatch(d) {
+    $("#wt-sub").textContent = `更新于 ${d.updated_at}`;
+    $("#wt-count").textContent = `${d.count} 个标的`;
+    const rows = d.items || [];
+    if (!rows.length) {
+      $("#wt-table").innerHTML = `<tr><td class="wt-empty">还没有自选标的，在上方输入代码添加</td></tr>`;
+      return;
+    }
+    const head = `<thead><tr><th>名称</th><th>类型</th><th>最新价</th><th>涨跌幅</th><th>成交量</th><th>成交额</th><th>20日均净流入</th><th></th></tr></thead>`;
+    const typeName = { stock: "股票", etf: "ETF", bond: "转债", option: "期权", index: "指数" };
+    const body = rows.map((r) => {
+      const pct = r.pct === null || r.pct === undefined ? "—" : `${r.pct > 0 ? "+" : ""}${r.pct.toFixed(2)}%`;
+      const cls = r.pct > 0 ? "up" : r.pct < 0 ? "down" : "";
+      const flowCls = r.flow_net > 0 ? "up" : r.flow_net < 0 ? "down" : "";
+      const flow = r.flow_net === null || r.flow_net === undefined ? "—" : `${r.flow_net > 0 ? "+" : ""}${r.flow_net.toFixed(1)}%`;
+      return `<tr data-code="${r.code}">
+        <td>${r.name} <span class="muted">${r.code}</span></td>
+        <td>${typeName[r.type] || r.type}</td>
+        <td>${r.price === null ? "—" : r.price}</td>
+        <td class="${cls}">${pct}</td>
+        <td>${r.volume === null ? "—" : fmtMoney(r.volume * 100)}股</td>
+        <td>${fmtMoney(r.amount)}</td>
+        <td class="${flowCls}">${flow}</td>
+        <td><button class="wt-del" data-remove="${r.code}" title="移除">×</button></td>
+      </tr>`;
+    }).join("");
+    $("#wt-table").innerHTML = head + `<tbody>${body}</tbody>`;
+  }
+
+  async function loadWatchDetail(code) {
+    wt.code = code;
+    $("#wt-detail-wrap").hidden = false;
+    $("#wt-detail-title").textContent = "分时与资金流";
+    $("#wt-kpi").innerHTML = "";
+    try {
+      const d = await (await fetch(`/api/watchlist/detail?code=${encodeURIComponent(code)}`)).json();
+      if (!d.ok) {
+        $("#wt-detail-title").textContent = d.error || "无法获取该标的";
+        $("#wt-chart").innerHTML = "";
+        return;
+      }
+      renderWatchDetail(d);
+    } catch (err) {
+      $("#wt-detail-title").textContent = "加载失败：" + err.message;
+    }
+  }
+
+  function renderWatchDetail(d) {
+    $("#wt-detail-title").textContent = `${d.name}（${d.code}）分时与资金流`;
+    $("#wt-detail-sub").textContent = d.updated_at || "";
+    const f = d.flow_intraday || {};
+    const fd = d.flow_daily || {};
+    const kpi = (k, v, cls) => `<div class="wt-card"><span>${k}</span><b class="${cls || ""}">${v}</b></div>`;
+    $("#wt-kpi").innerHTML = [
+      kpi("最新价", d.quote.price, d.quote.pct >= 0 ? "up" : "down"),
+      kpi("涨跌幅", `${d.quote.pct > 0 ? "+" : ""}${d.quote.pct}%`, d.quote.pct >= 0 ? "up" : "down"),
+      kpi("今日流入", fmtMoney(f.inflow), "up"),
+      kpi("今日流出", fmtMoney(f.outflow), "down"),
+      kpi("净流入占比", `${(f.net_ratio || 0).toFixed(2)}%`, f.net_ratio >= 0 ? "up" : "down"),
+      kpi("量比(5日)", d.volume_ratio === null ? "—" : d.volume_ratio),
+      kpi("20日资金流", `${(fd.net_sum || 0).toFixed(1)}%`, fd.net_sum >= 0 ? "up" : "down"),
+    ].join("");
+
+    const el = $("#wt-chart");
+    if (!el || !window.echarts) return;
+    if (!wt.chart) wt.chart = echarts.init(el, null, { renderer: "canvas" });
+    const pts = d.intraday || [];
+    const times = pts.map((p) => p[0]);
+    const prices = pts.map((p) => p[1]);
+    const flowSeries = (f.series || []).map((x) => x[1]);
+    const flowMap = new Map((f.series || []).map((x) => [x[0], x[1]]));
+    const flow = times.map((t) => (flowMap.has(t) ? flowMap.get(t) : null));
+    wt.chart.setOption({
+      backgroundColor: "transparent",
+      grid: { left: 58, right: 62, top: 24, bottom: 36 },
+      tooltip: { trigger: "axis" },
+      xAxis: {
+        type: "category", data: times, boundaryGap: false,
+        axisLabel: { color: "#8b95a5", fontSize: 10, interval: Math.max(0, Math.floor(times.length / 8)) },
+        axisLine: { lineStyle: { color: "rgba(255,255,255,.12)" } },
+      },
+      yAxis: [
+        { type: "value", scale: true, axisLabel: { color: "#8b95a5", fontSize: 10 }, splitLine: { lineStyle: { color: "rgba(255,255,255,.05)" } } },
+        { type: "value", name: "累计资金流(亿)", nameTextStyle: { color: "#6b7280", fontSize: 10 }, axisLabel: { color: "#8b95a5", fontSize: 10 }, splitLine: { show: false } },
+      ],
+      series: [
+        { name: "价格", type: "line", data: prices, showSymbol: false, lineStyle: { width: 1.4, color: "#5eead4" }, areaStyle: { opacity: 0.06, color: "#5eead4" } },
+        { name: "累计资金流", type: "line", yAxisIndex: 1, data: flow, showSymbol: false, connectNulls: true, lineStyle: { width: 1.2, color: "#f6465d" } },
+      ],
+    }, true);
+    wt.chart.resize();
+  }
+
   function switchView(name) {
     document.querySelectorAll("#view-tabs button").forEach((b) => {
       b.classList.toggle("active", b.dataset.view === name);
@@ -1945,8 +2122,10 @@
     }
     $("#view-report").hidden = name !== "report";
     $("#view-huijin").hidden = name !== "huijin";
+    $("#view-watch").hidden = name !== "watch";
     if (name === "report") { initReport(); loadReport(); }
     else if (name === "huijin") { initHuijin(); loadHuijin(); loadHuijinEtf(); }
+    else if (name === "watch") { initWatch(); loadWatch(); }
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */

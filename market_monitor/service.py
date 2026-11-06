@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, huijin, huijin_etf, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors
+from . import config, gold, huijin, huijin_etf, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors, watchlist
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -143,6 +143,7 @@ class MarketService:
             manual.ensure_seed(data_root)
             huijin.set_data_dir(os.path.join(data_root, "huijin"))
             huijin_etf.set_data_dir(os.path.join(data_root, "huijin"))
+            watchlist.set_data_dir(data_root)
             huijin.write_template(os.path.join(data_root, "huijin"))
             self.data_dir = data_root
         except Exception:
@@ -204,6 +205,30 @@ class MarketService:
         """汇金相关宽基 ETF 的每日份额与申购赎回。"""
         try:
             return huijin_etf.build(self.quote_map())
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def watch_list(self) -> dict:
+        try:
+            return watchlist.overview()
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def watch_add(self, code: str) -> dict:
+        try:
+            return watchlist.add(code)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def watch_remove(self, code: str) -> dict:
+        try:
+            return watchlist.remove(code)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def watch_detail(self, code: str) -> dict:
+        try:
+            return watchlist.detail(code)
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:160]}
 

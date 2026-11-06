@@ -33,6 +33,7 @@
     <button data-view="analysis">关联分析</button>
     <button data-view="report">日报</button>
     <button data-view="huijin">官方机构</button>
+    <button data-view="watch">自选</button>
   </nav>
 
   <div class="sessions" id="sessions" aria-label="市场状态"></div>
@@ -318,6 +319,42 @@
         <p><b>数据口径</b>：上交所 / 深交所定期报告披露的「前十大流通股东」，经东方财富数据中心汇总。深交所接口对外返回 403，因此统一走汇总口径。</p>
         <p><b>已知限制</b>：只能看到进入前十大流通股东的仓位；按季度披露，最新一期通常滞后 1~2 个月，季度末期数据可能仍在陆续更新。ETF 申赎等行为不体现在个股股东名单中。</p>
         <p><b>本地补充</b>：可在 <code>data\huijin\records.csv</code> 手工补充公告类记录（列：date, code, name, holder, action, shares, ratio, note），会合并展示。</p>
+      </div>
+    </section>
+  </div>
+
+
+  <div id="view-watch" hidden>
+    <section class="wt-wrap">
+      <div class="panel wt-head">
+        <div class="chart-title">
+          <h2>自选板块</h2>
+          <span class="chip" id="wt-sub">加载中…</span>
+        </div>
+        <div class="wt-add">
+          <input id="wt-input" type="text" placeholder="输入代码：600519 / 510300 / 159915" autocomplete="off" spellcheck="false" />
+          <button class="btn small" id="wt-add">添加</button>
+        </div>
+      </div>
+
+      <div class="panel wt-panel">
+        <div class="panel-head">
+          <h3>自选列表</h3>
+          <span class="chip" id="wt-count"></span>
+        </div>
+        <div class="wt-table-wrap">
+          <table class="wt-table" id="wt-table"></table>
+        </div>
+        <p class="wt-tip">资金流为按分钟价格方向（tick rule）估算的主动买入 / 卖出金额，仅用于横向比较强弱，非真实逐笔成交。</p>
+      </div>
+
+      <div class="panel wt-panel" id="wt-detail-wrap" hidden>
+        <div class="panel-head">
+          <h3 id="wt-detail-title">分时与资金流</h3>
+          <span class="chip" id="wt-detail-sub"></span>
+        </div>
+        <div class="wt-kpi" id="wt-kpi"></div>
+        <div id="wt-chart" class="chart wt-chart"></div>
       </div>
     </section>
   </div>

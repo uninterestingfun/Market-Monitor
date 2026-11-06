@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "code": "sh600519",
+      "type": "stock"
+    },
+    {
+      "code": "sh510300",
+      "type": "etf"
+    },
+    {
+      "code": "sz159915",
+      "type": "etf"
+    }
+  ]
+}

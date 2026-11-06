@@ -98,6 +98,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/huijin/etf":
             self._json(self.service.huijin_etf())
             return
+        if path == "/api/watchlist":
+            self._json(self.service.watch_list())
+            return
+        if path == "/api/watchlist/add":
+            self._json(self.service.watch_add((query.get("code") or [""])[0]))
+            return
+        if path == "/api/watchlist/remove":
+            self._json(self.service.watch_remove((query.get("code") or [""])[0]))
+            return
+        if path == "/api/watchlist/detail":
+            self._json(self.service.watch_detail((query.get("code") or [""])[0]))
+            return
         if path == "/api/huijin":
             try:
                 quarters = int((query.get("quarters") or ["8"])[0])
