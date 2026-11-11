@@ -1868,7 +1868,17 @@
       card("汇金投资持仓", `${inv.count || 0} 只`, fmtShares(inv.shares)),
       card("汇金资管持仓", `${ast.count || 0} 只`, fmtShares(ast.shares)),
       card("变动记录", `${ops.length} 笔`, ops.length ? "近 8 个季度" : "期间无披露变动"),
-    ].join("");
+    ].join("") +
+      (d.valuation && d.valuation.ok
+        ? [
+            kpi("PE(TTM)", d.valuation.pe ?? "—"),
+            kpi("PB", d.valuation.pb ?? "—"),
+            kpi("PS", d.valuation.ps ?? "—"),
+            kpi("ROE", d.valuation.roe === null ? "—" : d.valuation.roe + "%"),
+            kpi("净利增速", d.valuation.growth === null ? "—" : d.valuation.growth + "%",
+                d.valuation.growth >= 0 ? "up" : "down"),
+          ].join("")
+        : "");
 
     if (!ops.length) {
       $("#hj-ops").innerHTML = `<tr><td class="hj-empty">近 8 个季度未披露持仓变动（汇金对权重股以长期持有为主）</td></tr>`;
@@ -2076,6 +2086,94 @@
     wt.chart.resize();
   }
 
+
+  /* ───────────────────────── 估值与相对价值 ───────────────────────── */
+  const va = { data: null, erpChart: null, gsChart: null, bound: false, loading: false };
+
+  function initValuation() {
+    if (va.bound) return;
+    va.bound = true;
+    $("#va-reload").addEventListener("click", () => loadValuation(true));
+  }
+
+  async function loadValuation(force) {
+    if (va.loading) return;
+    if (va.data && !force) {
+      renderValuation(va.data);
+      return;
+    }
+    va.loading = true;
+    $("#va-sub").textContent = "计算中…";
+    try {
+      const d = await (await fetch("/api/valuation", { cache: "no-store" })).json();
+      if (!d.ok) {
+        $("#va-sub").textContent = d.error || "计算失败";
+        return;
+      }
+      va.data = d;
+      renderValuation(d);
+    } catch (err) {
+      $("#va-sub").textContent = "计算失败：" + err.message;
+    } finally {
+      va.loading = false;
+    }
+  }
+
+  function renderValuation(d) {
+    $("#va-sub").textContent = `更新于 ${d.updated_at}`;
+    const series = d.ey_history || [];
+    const card = (k, v, sub, cls) =>
+      `<div class="va-card"><span>${k}</span><b class="${cls || ""}">${v}</b>${sub ? `<em>${sub}</em>` : ""}</div>`;
+    const pctText = d.pe_percentile === null || d.pe_percentile === undefined
+      ? "积累中" : `${d.pe_percentile.toFixed(1)}% 分位`;
+    const gsPct = d.gs_percentile === null || d.gs_percentile === undefined
+      ? "—" : `${d.gs_percentile.toFixed(1)}% 分位`;
+    $("#va-cards").innerHTML = [
+      card("市场 PE（代理）", d.pe, `样本 ${d.samples} 只权重股`),
+      card("PE 历史分位", d.pe_percentile === null ? "积累中" : `${d.pe_percentile}%`, pctText),
+      card("盈利收益率", `${d.earnings_yield}%`, "1/PE"),
+      card("中国 10Y", `${d.cn10y}%`, "国债收益率"),
+      card("股债性价比", `${d.erp_cn}`, `= 盈利收益率 − 10Y`, d.erp_cn >= 0 ? "up" : "down"),
+      card("金银比", d.gs_current, gsPct),
+    ].join("");
+
+    // 盈利收益率曲线
+    const el1 = $("#va-erp");
+    if (el1 && window.echarts) {
+      if (!va.erpChart) va.erpChart = echarts.init(el1, null, { renderer: "canvas" });
+      va.erpChart.setOption({
+        backgroundColor: "transparent",
+        grid: { left: 52, right: 18, top: 24, bottom: 34 },
+        tooltip: { trigger: "axis", valueFormatter: (v) => v + "%" },
+        xAxis: { type: "category", data: series.map((x) => x[0]), axisLabel: { color: "#8b95a5", fontSize: 10 }, axisLine: { lineStyle: { color: "rgba(255,255,255,.12)" } } },
+        yAxis: { type: "value", name: "盈利收益率 %", nameTextStyle: { color: "#6b7280", fontSize: 10 }, axisLabel: { color: "#8b95a5", fontSize: 10 }, splitLine: { lineStyle: { color: "rgba(255,255,255,.05)" } } },
+        series: [{ type: "line", data: series.map((x) => x[1]), showSymbol: false, lineStyle: { color: "#5eead4", width: 1.6 }, areaStyle: { opacity: 0.08, color: "#5eead4" } }],
+      }, true);
+      va.erpChart.resize();
+    }
+    $("#va-erp-sub").textContent = d.erp_cn === null ? "需要 10Y 收益率" : `当前 ${d.erp_cn}%`;
+    $("#va-erp-tip").textContent = series.length >= 20
+      ? "曲线为每日存档的盈利收益率（1/PE），与 10Y 国债收益率的差值即股债性价比。"
+      : `盈利收益率序列正在积累（已 ${(d.ey_history || []).length} 个交易日），满 20 日后可看趋势。`;
+
+    // 金银比
+    const el2 = $("#va-gs");
+    if (el2 && window.echarts) {
+      if (!va.gsChart) va.gsChart = echarts.init(el2, null, { renderer: "canvas" });
+      const gs = d.gold_silver || [];
+      va.gsChart.setOption({
+        backgroundColor: "transparent",
+        grid: { left: 52, right: 18, top: 24, bottom: 34 },
+        tooltip: { trigger: "axis" },
+        xAxis: { type: "category", data: gs.map((x) => x[0]), axisLabel: { color: "#8b95a5", fontSize: 10, interval: Math.max(0, Math.floor(gs.length / 8)) }, axisLine: { lineStyle: { color: "rgba(255,255,255,.12)" } } },
+        yAxis: { type: "value", scale: true, axisLabel: { color: "#8b95a5", fontSize: 10 }, splitLine: { lineStyle: { color: "rgba(255,255,255,.05)" } } },
+        series: [{ type: "line", data: gs.map((x) => x[1]), showSymbol: false, lineStyle: { color: "#facc15", width: 1.6 } }],
+      }, true);
+      va.gsChart.resize();
+    }
+    $("#va-gs-sub").textContent = d.gs_current ? `当前 ${d.gs_current}` : "";
+  }
+
   function switchView(name) {
     document.querySelectorAll("#view-tabs button").forEach((b) => {
       b.classList.toggle("active", b.dataset.view === name);
@@ -2123,9 +2221,11 @@
     $("#view-report").hidden = name !== "report";
     $("#view-huijin").hidden = name !== "huijin";
     $("#view-watch").hidden = name !== "watch";
+    $("#view-valuation").hidden = name !== "valuation";
     if (name === "report") { initReport(); loadReport(); }
     else if (name === "huijin") { initHuijin(); loadHuijin(); loadHuijinEtf(); }
     else if (name === "watch") { initWatch(); loadWatch(); }
+    else if (name === "valuation") { initValuation(); loadValuation(); }
   }
 
   /* ─────────────────────────── 行业热力图 ─────────────────────────── */

@@ -98,6 +98,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/huijin/etf":
             self._json(self.service.huijin_etf())
             return
+        if path == "/api/valuation":
+            self._json(self.service.valuation_market())
+            return
+        if path == "/api/valuation/stock":
+            self._json(self.service.valuation_stock((query.get("code") or [""])[0]))
+            return
         if path == "/api/watchlist":
             self._json(self.service.watch_list())
             return

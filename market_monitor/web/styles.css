@@ -1104,3 +1104,19 @@ footer {
 .wt-card b.up { color: var(--up); }
 .wt-card b.down { color: var(--down); }
 .wt-chart { height: 320px; }
+
+/* 估值视图 */
+.va-wrap { display: flex; flex-direction: column; gap: 12px; max-width: 1180px; margin: 0 auto; }
+.va-head { display: flex; align-items: center; justify-content: space-between; }
+.va-cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.va-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.va-card span { font-size: 11px; color: var(--faint); }
+.va-card b { font-size: 16px; font-family: var(--mono); color: var(--text); }
+.va-card b.up { color: var(--up); }
+.va-card b.down { color: var(--down); }
+.va-card em { font-size: 10.5px; color: var(--muted); font-style: normal; }
+.va-chart { height: 260px; }
+.va-tip { font-size: 11px; color: var(--faint); margin: 6px 2px 0; line-height: 1.7; }
+.va-note p { margin: 0 0 6px; font-size: 11.5px; line-height: 1.8; color: var(--muted); }
+.va-note b { color: var(--text); }
+.va-note code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }

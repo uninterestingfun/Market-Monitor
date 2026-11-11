@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
-from . import config, gold, huijin, huijin_etf, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors, watchlist
+from . import config, gold, huijin, huijin_etf, industry_map, macro, manual, mlmodel, report, sectors, sources, sovereign_debt, us_sectors, valuation, watchlist
 from .analysis import (
     COMPOSITE_DESC, COMPOSITE_KEY, COMPOSITE_LABEL, DEFAULT_WEIGHTS,
     METRICS, average_series, composite_series, money_flow, normalize_weights,
@@ -144,6 +144,7 @@ class MarketService:
             huijin.set_data_dir(os.path.join(data_root, "huijin"))
             huijin_etf.set_data_dir(os.path.join(data_root, "huijin"))
             watchlist.set_data_dir(data_root)
+            valuation.set_data_dir(os.path.join(data_root, "valuation"))
             huijin.write_template(os.path.join(data_root, "huijin"))
             self.data_dir = data_root
         except Exception:
@@ -205,6 +206,60 @@ class MarketService:
         """汇金相关宽基 ETF 的每日份额与申购赎回。"""
         try:
             return huijin_etf.build(self.quote_map())
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def valuation_stock(self, code: str) -> dict:
+        """个股估值卡：PE / PB / PS / PEG / ROE。"""
+        try:
+            item = watchlist.normalize(code) or {"code": code}
+            full = item["code"]
+            q = watchlist.fetch_quotes([full]).get(full) or {}
+            cap = None
+            price = q.get("price")
+            try:
+                raw = watchlist.fetch_quotes([full]).get(full) or {}
+                cap = raw.get("market_cap")
+            except Exception:
+                cap = None
+            data = valuation.stock(full, price=price, cap=cap)
+            data["code"] = full
+            data["name"] = q.get("name") or full
+            data["price"] = price
+            return data
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
+    def valuation_market(self) -> dict:
+        """市场估值：PE 代理、分位、股债性价比、金银比。"""
+        try:
+            prices = {k: v.get("price") for k, v in self.quote_map().items() if v.get("price")}
+            mp = valuation.market_pe(prices)
+            hist = valuation.pe_history()
+            pe = mp.get("pe")
+            cn10y = self.last_close("bond.CN10Y")
+            us10y = self.last_close("bond.US10Y")
+            erp_cn = valuation.erp(pe, cn10y)
+            series = [[d, round(100.0 / v, 2)] for d, v in hist[-250:]]
+            gold = self.store.get_bars("hf.GC", "day") or []
+            silver = self.store.get_bars("hf.SI", "day") or []
+            gs = valuation.gold_silver(gold, silver)
+            return {
+                "ok": bool(pe),
+                "pe": pe,
+                "samples": mp.get("samples"),
+                "earnings_yield": mp.get("earnings_yield"),
+                "cn10y": cn10y,
+                "us10y": us10y,
+                "erp_cn": erp_cn,
+                "pe_percentile": valuation.percentile([v for _, v in hist], pe) if len(hist) >= 20 else None,
+                "pe_history": hist[-250:],
+                "ey_history": series,
+                "gold_silver": gs[-500:],
+                "gs_current": gs[-1][1] if gs else None,
+                "gs_percentile": valuation.percentile([v for _, v in gs], gs[-1][1]) if gs else None,
+                "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:160]}
 

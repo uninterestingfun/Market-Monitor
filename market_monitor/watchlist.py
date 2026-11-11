@@ -243,6 +243,27 @@ def _daily_flow(bars: List[List[Any]], days: int = 20) -> Dict[str, Any]:
     }
 
 
+
+def _stock_valuation(code: str, quote: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """个股估值（ETF / 指数返回 None）。"""
+    if not code.startswith(("sh6", "sz0", "sz3")):
+        return None
+    try:
+        from . import valuation
+
+        price = quote.get("price")
+        rows = valuation.financials(code)
+        cap = None
+        if rows and price:
+            eps = valuation._ttm(rows, "EPSJB")
+            np_ttm = valuation._ttm(rows, "PARENTNETPROFIT")
+            if eps and np_ttm:
+                cap = price * (np_ttm / eps)
+        return valuation.stock(code, price=price, cap=cap)
+    except Exception:
+        return None
+
+
 def detail(code: str) -> Dict[str, Any]:
     """单个自选标的：报价 + 分时 + 日内资金流 + 近 20 日资金流 + 量能。"""
     cached = _get(f"detail|{code}", 20)
@@ -293,6 +314,7 @@ def detail(code: str) -> Dict[str, Any]:
         "flow_daily": flow_daily,
         "volume_ratio": round(volume_ratio, 2) if volume_ratio else None,
         "bars": len(bars),
+        "valuation": _stock_valuation(code, quote),
         "updated_at": time.strftime("%H:%M:%S"),
     }
     _put(f"detail|{code}", payload)
