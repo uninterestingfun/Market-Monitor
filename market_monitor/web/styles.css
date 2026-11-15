@@ -1120,3 +1120,29 @@ footer {
 .va-note p { margin: 0 0 6px; font-size: 11.5px; line-height: 1.8; color: var(--muted); }
 .va-note b { color: var(--text); }
 .va-note code { background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); }
+
+/* 指数估值带 */
+.va-indices { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.va-idx-row { display: grid; grid-template-columns: 150px minmax(0,1fr) 210px 54px; gap: 12px; align-items: center; }
+.va-idx-name { font-size: 12.5px; color: var(--text); }
+.va-idx-name em { display: block; font-size: 10px; color: var(--faint); font-style: normal; }
+.va-idx-bar { position: relative; height: 10px; border-radius: 6px; overflow: hidden; display: flex; }
+.va-idx-bar .seg { flex: 1; }
+.va-idx-bar .seg.low { background: rgba(46,189,133,.55); }
+.va-idx-bar .seg.fair { background: rgba(148,163,184,.35); }
+.va-idx-bar .seg.high { background: rgba(246,70,93,.55); }
+.va-idx-bar .fair-line { position: absolute; top: -3px; bottom: -3px; width: 2px; background: rgba(226,232,240,.85); transform: translateX(-1px); }
+.va-idx-bar .dot { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid #0b0f14; }
+.va-idx-bar .dot.low { background: #2ebd85; }
+.va-idx-bar .dot.fair { background: #94a3b8; }
+.va-idx-bar .dot.high { background: #f6465d; }
+.va-idx-val { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--faint); }
+.va-idx-val b { font-size: 14px; font-family: var(--mono); }
+.va-idx-val b.low { color: var(--down); }
+.va-idx-val b.high { color: var(--up); }
+.va-idx-val b.fair { color: var(--text); }
+.va-idx-zone { font-size: 12px; text-align: right; }
+.va-idx-zone.low { color: var(--down); }
+.va-idx-zone.high { color: var(--up); }
+.va-idx-zone.fair { color: var(--muted); }
+.va-idx-empty { color: var(--faint); font-size: 12px; padding: 12px 0; }

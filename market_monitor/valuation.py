@@ -266,3 +266,142 @@ def gold_silver(bars_gold: List[List[Any]], bars_silver: List[List[Any]]) -> Lis
         if s:
             out.append([d, round(gold[d] / s, 2)])
     return out
+
+
+# ────────────────────── 指数估值带（低估 / 合理 / 高估） ──────────────────────
+# 官方指数 PE 接口不可用，这里用「代表成分加权 PE」近似，并用可编辑的估值带给出位置。
+# 阈值来自长期经验区间，可在 data/valuation/index_bands.json 覆盖（随数据积累可改成分位数）。
+INDEX_BANDS: List[Dict[str, Any]] = [
+    {
+        "key": "hs300", "name": "沪深300", "asset": "sh000300",
+        "members": ["600519.SH", "601398.SH", "601318.SH", "600036.SH", "601857.SH",
+                    "600028.SH", "601088.SH", "000333.SZ", "000858.SZ", "600276.SH",
+                    "601012.SH", "600030.SH"],
+        "bands": {"low": 11.0, "fair": 13.0, "high": 15.0},
+    },
+    {
+        "key": "sz50", "name": "上证50", "asset": "sh000016",
+        "members": ["600519.SH", "601398.SH", "601318.SH", "600036.SH", "601857.SH",
+                    "600028.SH", "601088.SH", "600030.SH", "601166.SH", "600887.SH",
+                    "601899.SH", "600309.SH"],
+        "bands": {"low": 9.0, "fair": 11.0, "high": 13.5},
+    },
+    {
+        "key": "zz500", "name": "中证500", "asset": "sh000905",
+        "members": ["002415.SZ", "300760.SZ", "002460.SZ", "600438.SH", "002466.SZ",
+                    "300124.SZ", "002714.SZ", "600809.SH", "603259.SH", "002050.SZ",
+                    "600415.SH", "000625.SZ"],
+        "bands": {"low": 20.0, "fair": 26.0, "high": 34.0},
+    },
+    {
+        "key": "kc50", "name": "科创50", "asset": "sh000688",
+        "members": ["688981.SH", "688111.SH", "688036.SH", "688012.SH", "688169.SH",
+                    "688008.SH", "688396.SH", "688599.SH", "688187.SH", "688303.SH",
+                    "688180.SH", "688223.SH"],
+        "bands": {"low": 35.0, "fair": 50.0, "high": 70.0},
+    },
+    {
+        "key": "cyb", "name": "创业板指", "asset": "sz399006",
+        "members": ["300750.SZ", "300059.SZ", "300760.SZ", "300124.SZ", "300274.SZ",
+                    "300308.SZ", "300014.SZ", "300999.SZ", "300122.SZ", "300142.SZ",
+                    "300661.SZ", "300496.SZ"],
+        "bands": {"low": 28.0, "fair": 38.0, "high": 55.0},
+    },
+    {
+        "key": "pharma", "name": "医药（行业篮子）", "asset": "",
+        "members": ["600276.SH", "603259.SH", "300760.SZ", "600196.SH", "000538.SZ",
+                    "600436.SH", "300122.SZ", "000661.SZ", "300142.SZ", "600085.SH",
+                    "002007.SZ", "000963.SZ"],
+        "bands": {"low": 22.0, "fair": 28.0, "high": 36.0},
+    },
+]
+
+
+def _load_band_overrides() -> Dict[str, Any]:
+    """读取用户覆盖的估值带：data/valuation/index_bands.json。"""
+    if not _DATA_DIR:
+        return {}
+    path = os.path.join(_DATA_DIR, "index_bands.json")
+    if not os.path.exists(path):
+        try:
+            os.makedirs(_DATA_DIR, exist_ok=True)
+            import json as _json
+
+            sample = {b["key"]: {"low": b["bands"]["low"], "fair": b["bands"]["fair"],
+                                 "high": b["bands"]["high"]} for b in INDEX_BANDS}
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write("# 各指数估值带（PE-TTM），可自行调整；保存为合法 JSON 即可\n")
+                fh.write(_json.dumps(sample, ensure_ascii=False, indent=2))
+        except Exception:
+            return {}
+        return {}
+    try:
+        import json as _json
+
+        with open(path, "r", encoding="utf-8-sig") as fh:
+            text = "".join(ln for ln in fh if not ln.lstrip().startswith("#"))
+        data = _json.loads(text or "{}")
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def index_valuations(indices: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """逐个指数计算加权 PE 与所处估值区间。"""
+    cached = _get("index_val", 6 * 3600)
+    if cached is not None:
+        return cached
+    overrides = _load_band_overrides()
+    out: List[Dict[str, Any]] = []
+    for cfg in (indices or INDEX_BANDS):
+        members = cfg["members"]
+        total_cap = 0.0
+        total_np = 0.0
+        used = 0
+        codes = []
+        for sec in members:
+            code = sec.split(".")[0]
+            codes.append(("sh" if sec.endswith(".SH") else "sz") + code)
+        try:
+            from . import watchlist
+
+            quotes = watchlist.fetch_quotes(codes)
+        except Exception:
+            quotes = {}
+        for sec, key in zip(members, codes):
+            price = (quotes.get(key) or {}).get("price")
+            rows = financials(sec)
+            if not (price and rows):
+                continue
+            eps = _ttm(rows, "EPSJB")
+            np_ttm = _ttm(rows, "PARENTNETPROFIT")
+            if not (eps and np_ttm and eps > 0):
+                continue
+            shares = np_ttm / eps
+            total_cap += price * shares
+            total_np += np_ttm
+            used += 1
+        pe = round(total_cap / total_np, 2) if (total_cap and total_np) else None
+        bands = dict(cfg["bands"])
+        if cfg["key"] in overrides and isinstance(overrides[cfg["key"]], dict):
+            bands.update({k: float(v) for k, v in overrides[cfg["key"]].items()
+                          if k in ("low", "fair", "high") and v})
+        zone = None
+        if pe:
+            if pe <= bands["low"]:
+                zone = "低估"
+            elif pe >= bands["high"]:
+                zone = "高估"
+            else:
+                zone = "合理"
+        out.append({
+            "key": cfg["key"],
+            "name": cfg["name"],
+            "pe": pe,
+            "samples": used,
+            "bands": bands,
+            "zone": zone,
+            "note": "代表成分加权 PE（非官方指数 PE）",
+        })
+    _put("index_val", out)
+    return out

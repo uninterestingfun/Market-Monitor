@@ -340,6 +340,15 @@
 
       <div class="panel va-panel">
         <div class="panel-head">
+          <h3>指数估值带</h3>
+          <span class="chip" id="va-idx-sub">低估 / 合理 / 高估</span>
+        </div>
+        <div class="va-indices" id="va-indices"></div>
+        <p class="va-tip">灰线为合理线，左右分别为低估区与高估区；圆点表示当前 PE 所处位置。阈值可在 <code>data/valuation/index_bands.json</code> 调整。</p>
+      </div>
+
+      <div class="panel va-panel">
+        <div class="panel-head">
           <h3>股债性价比（盈利收益率）</h3>
           <span class="chip" id="va-erp-sub"></span>
         </div>

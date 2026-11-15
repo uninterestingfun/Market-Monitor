@@ -2112,10 +2112,55 @@
       }
       va.data = d;
       renderValuation(d);
+      loadIndexBands();
     } catch (err) {
       $("#va-sub").textContent = "计算失败：" + err.message;
     } finally {
       va.loading = false;
+    }
+  }
+
+
+  async function loadIndexBands() {
+    const box = $("#va-indices");
+    if (!box) return;
+    box.innerHTML = `<div class="va-idx-empty">计算中…</div>`;
+    try {
+      const d = await (await fetch("/api/valuation/indices", { cache: "no-store" })).json();
+      if (!d.ok) {
+        box.innerHTML = `<div class="va-idx-empty">${d.error || "暂无数据"}</div>`;
+        return;
+      }
+      const zoneCls = { 低估: "low", 合理: "fair", 高估: "high" };
+      box.innerHTML = (d.rows || []).map((r) => {
+        const b = r.bands || {};
+        const low = b.low || 0;
+        const fair = b.fair || 0;
+        const high = b.high || 0;
+        const pe = r.pe;
+        const span = Math.max(high - low, 0.01);
+        const pos = pe ? Math.min(100, Math.max(0, ((pe - low) / span) * 100)) : 50;
+        const fairPos = Math.min(100, Math.max(0, ((fair - low) / span) * 100));
+        const cls = zoneCls[r.zone] || "fair";
+        return `<div class="va-idx-row">
+          <div class="va-idx-name">${r.name}<em>${r.samples} 只成分</em></div>
+          <div class="va-idx-bar">
+            <span class="seg low"></span>
+            <span class="seg fair"></span>
+            <span class="seg high"></span>
+            <i class="fair-line" style="left:${fairPos}%"></i>
+            <b class="dot ${cls}" style="left:${pos}%"></b>
+          </div>
+          <div class="va-idx-val">
+            <b class="${cls}">${pe === null ? "—" : pe}</b>
+            <span>低估 ${low} · 合理 ${fair} · 高估 ${high}</span>
+          </div>
+          <div class="va-idx-zone ${cls}">${r.zone || "—"}</div>
+        </div>`;
+      }).join("");
+      $("#va-idx-sub").textContent = `更新于 ${d.updated_at}`;
+    } catch (err) {
+      box.innerHTML = `<div class="va-idx-empty">加载失败：${err.message}</div>`;
     }
   }
 

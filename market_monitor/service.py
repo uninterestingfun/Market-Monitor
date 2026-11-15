@@ -230,6 +230,15 @@ class MarketService:
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:160]}
 
+    def valuation_indices(self) -> dict:
+        """宽基/行业指数的估值带位置。"""
+        try:
+            rows = valuation.index_valuations()
+            return {"ok": bool(rows), "rows": rows,
+                    "updated_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:160]}
+
     def valuation_market(self) -> dict:
         """市场估值：PE 代理、分位、股债性价比、金银比。"""
         try:

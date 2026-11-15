@@ -58,7 +58,7 @@
   <div class="sub">行情 · 板块 · 宏观 · 债券 · 黄金 · 关联分析</div>
   <div class="sub" style="font-size:10.5pt;color:#64748b;">指标定义 · 计算方法 · 功能导览 · 上手路径</div>
   <div class="meta">
-    版本 1.8.0<br />
+    版本 1.9.0<br />
     适用平台 Windows 10 / 11<br />
     2026 年 10 月
   </div>
@@ -275,6 +275,18 @@
   </table>
   <div class="callout">
     「自选」里点开个股还会显示 PE / PB / PS / PEG / ROE / 净利增速 的估值卡（数据来自东财 F10）。
+  </div>
+
+  <h3>2.13 指数估值带</h3>
+  <table>
+    <tr><th style="width:24%">元素</th><th>说明</th></tr>
+    <tr><td>覆盖指数</td><td>沪深300、上证50、中证500、科创50、创业板指、医药（行业篮子）。</td></tr>
+    <tr><td>色带</td><td>绿色为低估区、灰色为合理区、红色为高估区；白线是合理线。</td></tr>
+    <tr><td>圆点</td><td>当前 PE 在带上的位置，越靠左越便宜。</td></tr>
+    <tr><td>阈值调整</td><td>编辑 <code>data/valuation/index_bands.json</code>，格式为 <code>{"hs300": {"low": 11, "fair": 13, "high": 15}}</code>。</td></tr>
+  </table>
+  <div class="callout warn">
+    <b>PE 为成分加权近似值</b>，不是官方指数 PE；官方接口目前不可用。阈值是长期经验区间，不代表买卖建议。
   </div>
 
   <h3>3.1 行情基础指标</h3>
